@@ -8,23 +8,57 @@ sidebar:
   nav: docs
 ---
 
-## Content
-
-### Content attachments and images
+## Content attachments and images
 
 Skyve includes both structured database persistence and a non-sql/content repository for the storage of file attachments, images and other non-structured data.
 
 Skyve integrates the two persistence mechanisms transparently for developers and users for no-code and low-code applications. Additionally, Skyve provides a platform independent and consolidated backup and restore capability for both stores. However, developers can take advantage of understanding the distinction between the two types of persistence to produce sophisticated and rich solutions. 
 
-Skyve incorporates the Elastic content repository for non-sql storage. Elastic requires access to the file system and a `content` folder must be specified in the application `.json` settings file for the Skyve platform to be able to start, with read and write permissions being assigned to the user credential under which Wildfly runs.
+Skyve incorporates automatic content management with non-sql storage. 
+
+There are two options for content management:
+* lucene based simple content manager addin (bundled with Skyve)
+* use others (like Elastic) in the cloud or on another server if using on-premise
+
+To use the free Skyve content management addin, retrieve the addin zip by performing a maven `install` or maven `compile` against your project and check the `target` folder in your project's workspace. Copy the downloaded `skyve-content.zip` to a file location, and specify that location for the `addins` section in the application `.json` settings file. 
+
+The same content management addin can be referenced by multiple projects on the same instance, provided the version is compatible with the version of Skyve your project is using, you do not need to have a separate addin for each project.
+
+e.g.
+
+```json
+// Add-ins settings
+"addins": {
+	// Where to look for add-ins - defaults to <content.directory>/addins/
+	"directory": "C:/content/addins/"
+},
+```
+
+The addin content manager requires access to the file system and a `content` folder must be specified in the application `.json` settings file `content` section for the Skyve platform to be able to start, with read and write permissions being assigned to the user credential under which Wildfly runs.
+
+e.g.
+
+```json
+// Content settings
+"content": {
+	// Directory path to the location for storage of content, caching and working files
+	// Note that if you are running on Windows do not use backslashes
+	// The value must be terminated with a slash - e.g. "C:/Workspace/content/"
+	"directory": "C:/content/myApplication/",
+	// CRON Expression for CMS Garbage Collection job - run at 7 past the hour every hour
+	"gcCron": "0 7 0/1 1/1 * ? *",
+	// Attachments stored on file system or inline
+	"fileStorage": true
+},
+```
 
 Access to content items is controlled by the privilege declaration in the `module.xml` for the document that contains the content item attribute.
 
-(For the developer environment, we recommend selecting a folder location for content which is outside of the project, to avoid problems with IDEs like Eclipse constantly scanning the folder for changes.)
+_For the developer environment, we recommend selecting a folder location for content which is outside of the project, to avoid problems with IDEs like Eclipse constantly scanning the folder for changes._
 
-#### Using content
+### Using content
 
-Skyve manages content by linking the stored item with the bean context in which it exist - namely, in a `<content>` type document attribute.
+Skyve manages content by linking the stored item with the bean context in which it exists - namely, in a `<content>` type document attribute.
 
 For example, the document `Contact` may have the following attributes:
 
@@ -66,9 +100,11 @@ When the user uploads the image, the image item (in this case a `.png` file) wil
 
 When Skyve retrieves or saves a bean (for example for display in the view), Skyve automatically maintains the content `id` value appropriately for the bean to ensure the integrity of the context. 
 
-#### Federated text search
+### Federated text search
 
 Skyve provides a federated text search capability for indexed items - which includes text-based content items and other attributes declared with the _index_ tag (including `memo` and where `text` attributes have the _index_ tag declared).
+
+_Note: `memo` attributes are indexed by default, unless this is switched off as in the content attribute example above._
 
 To access the search, switch to desktop mode and use the _Search_ feature as shown.
 
@@ -86,16 +122,15 @@ Note that access privileges (as declared for the document in the `module.xml`) l
 
 ![Text search results](../assets/images/working-with-content/text-search-results.png "Text search results")
 
-#### Retrieving content items in code
+### Retrieving content items in code
 
-Using the `getter` in code for the `content` attribute will return only the `id` of the content as a `String`, and not the content item itself. To retrieve the content item, Skyve provides `EXT.newContentManager()`.
+Using the `getter` in code for the `content` attribute will return only the `id` of the content as a `String`, and not the content item itself. To retrieve the content item, Skyve provides the `ContentManager` interface.
 
 In the example of the Contact document above, the following code retrieves a byte array `byte[]` for the content item, and constructs a link to the item
 
 ```java
 try (ContentManager cm = EXT.newContentManager()) {
       AttachmentContent ac = cm.get(bean.getImage());
-      byte[] fileBytes = ac.getContentBytes();
       
 	  if (ac != null) { 
 		String link = String.format("<a href=\"%s/content?_n=%s&_doc=%s.%s&_b=%s" + 
@@ -111,7 +146,7 @@ try (ContentManager cm = EXT.newContentManager()) {
 }
 ```
 
-#### Searching content in code
+### Searching content in code
 
 Developers can take advantage of the text search capability in code, however developers need to consider that the indexed items include content and other indexed items.
 
@@ -133,19 +168,19 @@ try (ContentManager cm = EXT.newContentManager()) {
 }
 ```			
 
-In the above example, the SearchResults contains a list of results, but the SearchResults object also provides the following methods:
+In the above example, the `SearchResults` contains a list of results, but the `SearchResults` object also provides the following methods:
 * `getSearchTimeInSecs()` - the search time in seconds
 * `getSuggestion()` - returns the search value suggestion from the search value for auto-complete
 
 Iterating through the `getResults()` collection, if the match has a non-null bizId, this means that the match was found in an indexed scalar attribute (for example, a _memo_ attribute).
 
-#### The content servlet
+### The content servlet
 
 Skyve provides a content servlet for returning content from a link constructed along the lines of the example above.
 
 The content servlet is accessible from the Skyve context url `/content` and will retrieve the content item specified by the given parameters.
 
-If the content servlet request is provided with width (w) and height (h) parameter values, Skyve will return either an image of the specified size (if the content item is a recognised image type), or an icon representing the MimeType of the content item.
+If the content servlet request is provided with width (`w`) and height (`h`) parameter values, Skyve will return either an image of the specified size (if the content item is a recognised image type), or an icon representing the MimeType of the content item.
 
 The content servlet allows the following parameters:
 
@@ -177,7 +212,7 @@ Similarly, to include a content item image in a documentQuery column (for exampl
 </column>
 ```
 
-#### Content column type for queries
+### Content column type for queries
 
 Skyve provides a `content` column type with display options of `link` or `thumbnail` for exactly this purpose, for example:
 
@@ -202,7 +237,7 @@ Using the `thumbnail` display option, where the content item is not an image, Sk
 
 The `content` column type using display option `link` will provide a download link for the item.
  
-#### Content storage
+### Content storage
 
 _NOTE_ the following information is provided for information only - manipulating the content storage area directly may result in loss of data. 
 
@@ -227,7 +262,7 @@ The associated `meta.json` includes the identity of the bean context in which th
 {"attribute":"contentItem","bizCustomer":"cit","bizDataGroupId":null,"bizDocument":"ContentContainer","bizId":"97685d51-2746-426b-949c-0754509d7438","bizModule":"myModule","bizUserId":"6568db1f-be43-444b-a62a-b4468cabba0b","content_type":"application\/pdf","filename":"Skyve Developer Guide.pdf","last_modified":"2018-11-30T03:28:51.773+00:00"}
 ```
 
-### Content tools
+## Content tools
 
 For details about Skyve platform content management tools, see [Content repository tools](./../_pages/content-repository-tools.md)
 

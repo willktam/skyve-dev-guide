@@ -26,7 +26,11 @@ docs:
       - title: "Bizlet and extension classes"
         url: /bizlets/                                        
       - title: "Views, widgets and layout"
-        url: /views/                                                
+        url: /views/        
+      - title: "Queries"
+        url: /queries/        
+      - title: "Inheritance"
+        url: /inheritance/                                                                                        
       - title: "Routing and rendering"
         url: /routing/                                                
       - title: "Actions"
@@ -77,15 +81,15 @@ docs:
         url: /backup-restore/                                                                                        
   - title: Appendix
     children:
-      - title: "Quick tips for Developers"
-        url: /appendix/
+      - title: "Deployment problem solver"
+        url: /appendix-deployment-problem-solver/
+      - title: "Changing database dialect"
+        url: /appendix-changing-database-dialect/                  
       - title: "Deploying a Skyve application"
-        url: /appendix/                  
-      - title: "Installing and configuring a Skyve development environment"
-        url: /appendix/                  
+        url: /appendix-deploying-a-skyve-application/                  
+      - title: "Installing and configuring the Skyve development environment"
+        url: /appendix-installing-and-configuring/                  
       - title: "Setting up a Skyve instance"
-        url: /appendix/                  
-      - title: "Skyve application configuration"
-        url: /appendix/                  
-      - title: "Installing Skyve in Production"
-        url: /appendix/                          
+        url: /appendix-setting-up-a-skyve-instance/
+      - title: "Common Wildfly configuration settings"
+        url: /appendix-common-wildfly-configuration-settings/

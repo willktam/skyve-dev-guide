@@ -167,7 +167,7 @@ and created within a customer context.
 
 Skyve enforces multi-tenant specific security implicitly including via
 data interactions at the API level - however Skyve also allows the use
-of insecure SQL where required for performance reasons and where
+of unsecured SQL where required for performance reasons and where
 vendor-specific persistence layer functionality is required.
 
 In a simple standalone application the bizCustomer column is technically
@@ -189,7 +189,7 @@ Skyve supports declarative row-level security which is enforced
 pervasively and implicitly across all development contexts. Documents
 are declared with a scope for each application role.
 
-Four scope levels are supported – User, Data group, Customer and Global.
+Four scope levels are supported - User, Data group, Customer and Global.
 To ensure the correct scope is respected in a multi-role,
 multi-conversation environment, Skyve persists the owning context of
 each record at the customer level (`bizCustomer` column), data group

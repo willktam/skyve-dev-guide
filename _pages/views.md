@@ -1433,8 +1433,8 @@ Content picker    | Y | Y | Y |   |
 Date picker       | Y | Y | Y |   | 
 Date/time picker  | Y | Y | Y |   | 
 Drop-down list    | Y | Y | Y |   | 
-geolocator        | Y |   |   |   | 
-geometry   | Y |   |   |   | 
+geolocator        | Y | Y |   |   | 
+geometry   | Y | Y |   |   | 
 inject            | Y |   |   |   | 
 spinner   | Y | Y | Y |   | 
 listMembership   | Y | Y |   |   | 
@@ -1470,10 +1470,8 @@ The following features are only available for the SmartClient renderer, as they 
   * Tagging
   * Snapshots
   * Flags
-  * Exporting
-
-**[⬆ back to top](#views)**
+  * Exporting**[⬆ back to top](#views)**
 
 ---
-**Next [Routing and rendering](./../_pages/routing.md)**  
+**Next [Queries](./../_pages/queries.md)**  
 **Previous [Bizlets](./../_pages/bizlets.md)**

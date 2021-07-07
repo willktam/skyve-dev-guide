@@ -8,22 +8,20 @@ sidebar:
   nav: docs
 ---
 
-## Appendix
+## Problem solver
 
-### Quick tips 
+### Problems building your app
 
-#### Problems building your app
-
-* Check that you have Java 8 (jdk1.8) available in your IDE.
+* Check that you have Java 11+ (jdk11) available in your IDE.
 
 For example, in Eclipse, right-click your project and choose _Properties_->_Java Build Path_
 Change to the _Libraries_ tab, select the JRE Library and click _Edit_
 Click _Installed JREs_
-Add or select Java 8 (jdk1.8)
+Add or select Java 11 (jdk11)
 
 ![Installed JRE](../assets/images/appendix/installed-jre.png "Installed JRE")
 
-* Check that you have Java 8 (jdk1.8) selected for compiler compliance in your IDE.
+* Check that you have Java 11 (jdk11) selected for compiler compliance in your IDE.
 
 For example, in Eclipse, right-click your project and choose _Properties_->_Java Compiler_->_Configure Workspace Settings_
 
@@ -31,7 +29,7 @@ For example, in Eclipse, right-click your project and choose _Properties_->_Java
 
 Alternatively, select _Enable project specific settings_ and set the project compliance level.
 
-* Check that you have the Java 8 (jdk1.8) selected for the Runtime JRE.
+* Check that you have the Java 11 (jdk11) selected for the Runtime JRE.
 
 For example, in Eclipse, right-click your project and choose _Run As_->_Run Configurations..._
 
@@ -42,7 +40,7 @@ For example, in Eclipse, right-click your project and choose _Run As_->_Run Conf
 In your project _config_ folder, right-click the _MyAppName - Generate Domain.launch_ task and choose 
 _Run As_->_MyAppName - Generate Domain_
 
-#### Problems deploying your app
+### Problems deploying your app
 
 * If you're using the collaboration option in [Skyve Foundry](https://foundry.skyve.org/foundry), or have exported your project, check that you selected the `Default` theme first. 
 
@@ -50,7 +48,7 @@ If your project has a _paid theme_ selected we can't provide the theme files for
 
 You should change your theme to the free `Default` theme on the <em>Customise</em> tab in [Skyve Foundry](https://foundry.skyve.org/foundry) before you start collaboration (or export), OR you can proceed and collaborate (or export) with this theme selected, but we can't include the theme files in your code repository (or download). You will need to purchase your own licence to use the paid theme for local development.
 
-#### Problems finding your app
+### Problems finding your app
 
 * Check the URL settings in the project `.json` file for the URL and context. 
 
@@ -74,7 +72,7 @@ Then you can access your app at
 
 See more at [Changing the project URL context](#changing-the-project-url-context)
 
-#### Problems signing in for the first time
+### Problems signing in for the first time
 
 As a way to get started with a new environment, Skyve provides a bootstrap capability that inserts a user credential into your database for your first sign in (normally into an empty database). 
 
@@ -162,11 +160,183 @@ If you set the `environment.customer` to null, the Skyve sign in page will requi
 
 If you specify an `environment.customer`, make sure it matches the `bootstrap.customer` or your sign in will fail.
 
-#### Still having problems?
+### Example deployment problems
+Key problems in the `myApplication.json` configuration file block your project from deploying successfully and sometime yield non-obvious errors or stack output. The following provides three common examples.
+
+### Example output for incorrect content or addins folder
+Incorrect content folder - the folder doesn't exist:
+
+```json
+	// Content settings
+	"content": {
+		// directory path
+		"directory": "C:/skyve/content/", 
+		// CRON Expression for CMS Garbage Collection job - run at 7 past the hour every hour
+		"gcCron": "0 7 0/1 1/1 * ? *", 
+		// Attachments stored on file system or inline
+		"fileStorage": true
+	},
+  // Add-ins settings
+	"addins": {
+		// Where to look for add-ins - defaults to <content.directory>/addins/
+		"directory": null
+	},
+```
+
+In this case, the folder `C:/skyve/content/` doesn't exist or the name is incorrect.
+
+Attempting to deploy in this case yields results such as the following:
+```
+15:51:09,837 ERROR [org.jboss.msc.service.fail] (ServerService Thread Pool -- 61) MSC000001: Failed to start service jboss.undertow.deployment.default-server.default-host./phweb: org.jboss.msc.service.StartException in service jboss.undertow.deployment.default-server.default-host./phweb: java.lang.RuntimeException: java.lang.IllegalStateException: content.directory C:/skyve/content/ does not exist.
+	at org.wildfly.extension.undertow.deployment.UndertowDeploymentService$1.run(UndertowDeploymentService.java:85)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+	at org.jboss.threads.JBossThread.run(JBossThread.java:320)
+Caused by: java.lang.RuntimeException: java.lang.IllegalStateException: *content.directory C:/skyve/content/ does not exist.*
+	at io.undertow.servlet.core.DeploymentManagerImpl.deploy(DeploymentManagerImpl.java:236)
+	at org.wildfly.extension.undertow.deployment.UndertowDeploymentService.startContext(UndertowDeploymentService.java:100)
+	at org.wildfly.extension.undertow.deployment.UndertowDeploymentService$1.run(UndertowDeploymentService.java:82)
+	... 6 more
+Caused by: java.lang.IllegalStateException: content.directory C:/skyve/content/ does not exist.
+	at org.skyve.impl.web.SkyveContextListener.contextInitialized(SkyveContextListener.java:102)
+	at io.undertow.servlet.core.ApplicationListeners.contextInitialized(ApplicationListeners.java:187)
+	at io.undertow.servlet.core.DeploymentManagerImpl$1.call(DeploymentManagerImpl.java:200)
+	at io.undertow.servlet.core.DeploymentManagerImpl$1.call(DeploymentManagerImpl.java:171)
+	at io.undertow.servlet.core.ServletRequestContextThreadSetupAction$1.call(ServletRequestContextThreadSetupAction.java:42)
+	at io.undertow.servlet.core.ContextClassLoaderSetupAction$1.call(ContextClassLoaderSetupAction.java:43)
+	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
+	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
+	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
+	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
+	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
+	at io.undertow.servlet.core.DeploymentManagerImpl.deploy(DeploymentManagerImpl.java:234)
+	... 8 more
+```
+
+A similar error occurs if the `addins` directory is not found:
+
+```
+org.jboss.msc.service.StartException in service jboss.deployment.unit."jobManager.war".undertow-deployment: java.lang.RuntimeException: java.lang.IllegalStateException: addins.directory C:/skyve/content/addins/ does not exist.
+```
+
+Manually create an `addins` directory inside the content directory specified for your project. This is where Skyve will look for the addins directory by default if no path is specified in the json.
+
+### Example incorrect/invalid customer in bootstrap stanza
+Incorrect customer in the bootstrap- there is no such customer defined:
+
+```json
+// bootstrap user settings - creates a user with all customer roles assigned, if the user does not already exist
+bootstrap: {
+	customer: "skyve",
+	user: "admin",
+	password: "admin"
+}
+```
+
+In this case, there is no _skyve_ customer declaration file within the _customer_ folder.
+
+Attempting to deploy in this case yields results such as the following:
+
+```
+15:48:03,814 ERROR [stderr] (ServerService Thread Pool -- 68) org.skyve.metadata.MetaDataException: A problem was encountered.
+15:48:03,814 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.skyve.impl.metadata.repository.LocalDesignRepository.getCustomer(LocalDesignRepository.java:174)
+15:48:03,814 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.skyve.impl.metadata.user.UserImpl.getCustomer(UserImpl.java:198)
+15:48:03,814 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.skyve.impl.metadata.user.SuperUser.getAccessibleModuleNames(SuperUser.java:85)
+15:48:03,814 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.skyve.impl.persistence.hibernate.AbstractHibernatePersistence.resetDocumentPermissionScopes(AbstractHibernatePersistence.java:528)
+15:48:03,814 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.skyve.impl.persistence.hibernate.AbstractHibernatePersistence.setUser(AbstractHibernatePersistence.java:500)
+15:48:03,814 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.skyve.impl.web.SkyveContextListener.contextInitialized(SkyveContextListener.java:276)
+15:48:03,814 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.core.ApplicationListeners.contextInitialized(ApplicationListeners.java:187)
+15:48:03,814 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.core.DeploymentManagerImpl$1.call(DeploymentManagerImpl.java:200)
+15:48:03,815 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.core.DeploymentManagerImpl$1.call(DeploymentManagerImpl.java:171)
+15:48:03,815 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.core.ServletRequestContextThreadSetupAction$1.call(ServletRequestContextThreadSetupAction.java:42)
+15:48:03,815 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.core.ContextClassLoaderSetupAction$1.call(ContextClassLoaderSetupAction.java:43)
+15:48:03,815 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
+15:48:03,815 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
+15:48:03,815 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
+15:48:03,815 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
+15:48:03,815 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
+15:48:03,815 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.core.DeploymentManagerImpl.deploy(DeploymentManagerImpl.java:234)
+15:48:03,815 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.wildfly.extension.undertow.deployment.UndertowDeploymentService.startContext(UndertowDeploymentService.java:100)
+15:48:03,816 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.wildfly.extension.undertow.deployment.UndertowDeploymentService$1.run(UndertowDeploymentService.java:82)
+15:48:03,816 ERROR [stderr] (ServerService Thread Pool -- 68) 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+15:48:03,816 ERROR [stderr] (ServerService Thread Pool -- 68) 	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+15:48:03,816 ERROR [stderr] (ServerService Thread Pool -- 68) 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+15:48:03,816 ERROR [stderr] (ServerService Thread Pool -- 68) 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+15:48:03,816 ERROR [stderr] (ServerService Thread Pool -- 68) 	at java.lang.Thread.run(Thread.java:748)
+15:48:03,816 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.jboss.threads.JBossThread.run(JBossThread.java:320)
+15:48:03,816 ERROR [stderr] (ServerService Thread Pool -- 68) Caused by: org.skyve.metadata.MetaDataException: Could not unmarshal customer at /C:/_/pgibsa/Phylloxera/javaee/pgibsa.ear/apps.jar/customers/skyve/skyve.xml
+15:48:03,816 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.skyve.impl.util.XMLMetaData.unmarshalCustomer(XMLMetaData.java:185)
+15:48:03,816 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.skyve.impl.metadata.repository.LocalDesignRepository.getCustomer(LocalDesignRepository.java:164)
+15:48:03,817 ERROR [stderr] (ServerService Thread Pool -- 68) 	... 24 more
+15:48:03,817 ERROR [stderr] (ServerService Thread Pool -- 68) Caused by: java.io.FileNotFoundException: C:\_\pgibsa\Phylloxera\javaee\pgibsa.ear\apps.jar\customers\skyve\skyve.xml (The system cannot find the path specified)
+15:48:03,817 ERROR [stderr] (ServerService Thread Pool -- 68) 	at java.io.FileInputStream.open0(Native Method)
+15:48:03,817 ERROR [stderr] (ServerService Thread Pool -- 68) 	at java.io.FileInputStream.open(FileInputStream.java:195)
+15:48:03,817 ERROR [stderr] (ServerService Thread Pool -- 68) 	at java.io.FileInputStream.<init>(FileInputStream.java:138)
+15:48:03,817 ERROR [stderr] (ServerService Thread Pool -- 68) 	at java.io.FileInputStream.<init>(FileInputStream.java:93)
+15:48:03,817 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.skyve.impl.util.XMLMetaData.unmarshalCustomer(XMLMetaData.java:173)
+15:48:03,817 ERROR [stderr] (ServerService Thread Pool -- 68) 	... 25 more
+```
+
+### Missing comma or badly formed json file
+
+Missing comma or badly formed json file:
+
+```json
+	// bootstrap user settings - creates a user with all customer roles assigned, if the user does not already exist
+	bootstrap: {
+		customer: "skyve",
+		user: "admin",
+		password: "admin"
+	} 
+	// When taking photos or uploading images they will be compressed to within the size below (if possible)
+	maxUploadedFileSizeInBytes: 1000000 // 10 MB
+}
+```
+
+For example, should have been a comma after the bootstrap stanza.
+
+Attempting to deploy in this case yields results such as the following:
+
+```
+15:40:16,947 ERROR [org.jboss.msc.service.fail] (ServerService Thread Pool -- 69) MSC000001: Failed to start service jboss.undertow.deployment.default-server.default-host./phweb: org.jboss.msc.service.StartException in service jboss.undertow.deployment.default-server.default-host./phweb: java.lang.RuntimeException: java.lang.ClassCastException: java.lang.Long cannot be cast to java.util.Map
+	at org.wildfly.extension.undertow.deployment.UndertowDeploymentService$1.run(UndertowDeploymentService.java:85)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+	at org.jboss.threads.JBossThread.run(JBossThread.java:320)
+Caused by: java.lang.RuntimeException: java.lang.ClassCastException: java.lang.Long cannot be cast to java.util.Map
+	at io.undertow.servlet.core.DeploymentManagerImpl.deploy(DeploymentManagerImpl.java:236)
+	at org.wildfly.extension.undertow.deployment.UndertowDeploymentService.startContext(UndertowDeploymentService.java:100)
+	at org.wildfly.extension.undertow.deployment.UndertowDeploymentService$1.run(UndertowDeploymentService.java:82)
+	... 6 more
+Caused by: java.lang.ClassCastException: java.lang.Long cannot be cast to java.util.Map
+	at org.skyve.impl.web.SkyveContextListener.getObject(SkyveContextListener.java:378)
+	at org.skyve.impl.web.SkyveContextListener.contextInitialized(SkyveContextListener.java:253)
+	at io.undertow.servlet.core.ApplicationListeners.contextInitialized(ApplicationListeners.java:187)
+	at io.undertow.servlet.core.DeploymentManagerImpl$1.call(DeploymentManagerImpl.java:200)
+	at io.undertow.servlet.core.DeploymentManagerImpl$1.call(DeploymentManagerImpl.java:171)
+	at io.undertow.servlet.core.ServletRequestContextThreadSetupAction$1.call(ServletRequestContextThreadSetupAction.java:42)
+	at io.undertow.servlet.core.ContextClassLoaderSetupAction$1.call(ContextClassLoaderSetupAction.java:43)
+	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
+	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
+	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
+	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
+	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
+	at io.undertow.servlet.core.DeploymentManagerImpl.deploy(DeploymentManagerImpl.java:234)
+	... 8 more
+```
+
+
+### Still having problems?
 
 Join us on [Slack](https://join.slack.com/t/skyveframework/shared_invite/enQtNDMwNTcyNzE0NzI2LWNjMTBlMTMzNTA4YzBlMzFhYzE0ZmRhOWIzMWViODY4ZTE1N2QzYWM1MTdlMTliNDIyYTBkOWZhZDAxOGQyYjQ) and ask our friendly team. 
 
-### Changing database dialect
+## Changing database dialect
 
 One of the great things about Skyve is how easy it is to change between different database providers AND KEEP YOUR DATA. Skyve provides a platform-independent Backup format that can be restored to a different database technology without issue.
 
@@ -186,7 +356,7 @@ Then, to restore your data to the new environment:
 
 More information on backup and restore are available at the [User Guide](https://skyvers.github.io/skyve-user-guide/backup-restore/)
 
-#### Available dialects
+### Available dialects
 
 The currently supported dialects are:
 * H2
@@ -204,7 +374,7 @@ H2 | H2 | true | false | 0 | 1024
 H2_NO_INDEXES | H2 without indexes | false | false | 0 | 1024 //Indexes in H2 generate warnings, this option gives you a cleaner log but no indexes
 MYSQL_5 | MySQL 5 | true | false | 64 | 1024
 MYSQL_5_4_BYTE_CHARSET | MySQL 5 | true | false | 64 | 768
-MYSQL_5 | MySQL 8 | true | false | 64 | 1024
+MYSQL_8 | MySQL 8 | true | false | 64 | 1024
 MYSQL_8_4_BYTE_CHARSET | MySQL 8 | true | false | 64 | 768
 MSSQL_2014 | SQL Server up to 2014 | true | true | 0 | 900 // SQL Server 2014 and below limits indexes to 900
 MSSQL_2016 | SQL Server 2016+ | true | true | 0 | 1024
@@ -227,7 +397,45 @@ For the `json` file `dialect` setting, choose the appropriate dialect class:
 
 _Note: as mentioned above, if you require support for Oracle or other dialects, please contact us._
 
-#### Configuring Wildfly for different dialects
+### Accessing the H2 database console
+
+Using the H2 database console directly can be useful for debugging. 
+
+Before attempting to connect with the console, ensure you have allowed for multiple connections by setting `AUTO_SERVER=TRUE` both when starting the server (ds.xml) and when attempting to connect, e.g.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<datasources>
+	<datasource jndi-name="java:/myAppDB" pool-name="myApp" enabled="true" jta="true" use-ccm="false">
+		<connection-url>jdbc:h2:file:C:/content/myApp/myApp;IFEXISTS=FALSE;IGNORECASE=TRUE;AUTO_SERVER=TRUE</connection-url>
+		<driver>h2</driver>
+		<pool>
+			<min-pool-size>5</min-pool-size>
+			<max-pool-size>10</max-pool-size>
+		</pool>
+		<security>
+			<user-name>sa</user-name>
+			<password>sa</password>
+		</security>
+	</datasource>
+</datasources>
+```
+
+Note that we recommend, for consistency, locating the H2 database file within the application content folder (in the above example the H2 database file `C:/content/myApp/myApp.mv.db` will be created automatically when first deployed if it does not exist.
+
+To access the console, download and run the installer from <a href="http://www.h2database.com/html/download.html">http://www.h2database.com/html/download.html</a> (this has been tested with "Version 1.4.199 (2019-03-13), Last Stable")
+
+Once installed run 'H2 Console' from the start menu; the H2 console should open in your browser.
+
+When prompted use the same connection-url and credentials as the deployed project `-ds.xml` file.
+
+![Connecting to the H2 console](../assets/images/appendix/h2_console.PNG "Connecting to the H2 console")
+
+You can then access the H2 database directly with SQL.
+
+![H2 console](../assets/images/appendix/h2_console_query.PNG "H2 console")
+
+### Configuring Wildfly for different dialects
 
 Refer to other Wildfly documentation for detailed information, but the basic steps are as follows.
 
@@ -235,7 +443,7 @@ Refer to other Wildfly documentation for detailed information, but the basic ste
 2. Add the driver to the `drivers` stanza in the wildfly configuration in `\wildfly-x\standalone\configuration/standalone.xml`
 
 
-##### Wildfly driver configuration for MSSQL
+#### Wildfly driver configuration for MSSQL
 
 Place the appropriate jdbc driver into your `\wildfly-x\modules\system\layers\base\` folder.
 
@@ -277,7 +485,20 @@ Add the driver to the `drivers` stanza in the wildfly configuration, for example
 ...
 ```
 
-##### Wildfly driver configuration for MySQL
+*NOTE: Also ensure that you have the following settings on your MSSQL database rather than the defaults.*
+
+```sql
+ALTER DATABASE ${projectName} SET ALLOW_SNAPSHOT_ISOLATION ON
+GO
+ALTER DATABASE ${projectName} SET READ_COMMITTED_SNAPSHOT ON
+GO
+ALTER DATABASE ${projectName} SET AUTO_CLOSE OFF WITH NO_WAIT
+GO
+ALTER DATABASE ${projectName} SET RECOVERY SIMPLE WITH NO_WAIT
+GO
+```
+
+#### Wildfly driver configuration for MySQL
 
 Place the appropriate jdbc driver into your `/wildfly-x/modules/system/layers/base/` folder.
 
@@ -317,7 +538,28 @@ Add the driver to the `drivers` stanza in the wildfly configuration, for example
 ...
 ```
 
-##### Wildfly driver configuration for PostgreSQL 
+#### Problems with utf8 - character sets for other languages - MySQL
+If your Skyve application is not storing utf8 chars correctly, and you're using MySQL, check that MySQL is configured for utf8. Check the charset of the DB and tables, e.g. the default  is 'latin1'.
+
+In the my.cnf file (for MySQL), check that you have the following:
+```
+[client]
+default-character-set=utf8
+
+[mysql]
+default-character-set=utf8
+
+[mysqld]
+collation-server = utf8_unicode_ci
+init-connect='SET NAMES utf8'
+character-set-server = utf8
+```
+
+To keep an existing database once this change has been made, export the schema from MySQL workbench, use text edit change latin1 to utf8, then drop your schema and import the edited one.
+
+If you don't need to keep existing data, then after the my.cnf changes above, drop your schema, create a new one, then use Skyve bootstrap (in the json settings file) to sign in and let Skyve create the new schema for you.
+
+#### Wildfly driver configuration for PostgreSQL 
 
 Place the appropriate jdbc driver into your `/wildfly-x/modules/system/layers/base/` folder.
 
@@ -360,7 +602,7 @@ Add the driver to the `drivers` stanza in the wildfly configuration, for example
 ...
 ```
 
-### Deploying a Skyve application
+## Deploying a Skyve application
 
 Skyve builds applications as a single web archive (`.war`) folder, containing the application metadata and Skyve platform components. By default, Skyve `.war` folders are deployed 'exploded' or 'unzipped'.
 
@@ -386,7 +628,7 @@ When moving an application from DEV->TEST->PROD, the settings files on each inst
 
 This approach is part of the Skyve risk reduction strategy, to minimise the risk of problems when updating new versions of your application. Once each instance is configured, moving from DEV -> TEST -> PROD becomes a low-risk trivial activity, requiring no reconfiguration (unless the different instance have significantly different set ups).
 
-### Deploying a new application version
+## Deploying a new application version
 Where an instance has already been configured, to deploy a new application version on each instance:
 - undeploy the project (or stop Wildfly)
 - remove the existing `.war` from the deployment area
@@ -402,21 +644,22 @@ To redeploy, create a `myApplication.war.dodeploy` file in the `wildfly/standalo
 Additional steps are required for Single Sign-On configuration, 
 the creation of service user accounts, SPNs and port configuration.
 
-### Installing and configuring the Skyve development environment
+## Installing and configuring the Skyve development environment
 
 These instructions describe the process required to install and configure the 
 development environment for Skyve. These instructions assume that you are 
 using Windows and SQL Server. Some changes will need to be made if using a 
 different operating system or database.
 
-#### Prerequisites checklist
+### Prerequisites checklist
 
 Before you begin, ensure you have the following:
 
-* Java ([www.oracle.com](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html)), JDK 1.8
+* Java ([www.oracle.com](http://www.oracle.com/technetwork/java/javase/downloads/)), JDK 11
 * Eclipse IDE for Java EE developers ([www.eclipse.org](https://www.eclipse.org/downloads/)), so that the installation
 is in `C:\eclipse\`
-* Wildfly 16 (select the last final version available) ([http://wildfly.org](http://wildfly.org/downloads/))
+* NOTE - When downloading Eclipse, ensure you have selected Eclipse for Java EE (Enterprise Edition) Developers as the non-Enterprise Edition is missing libraries that Skyve utilises, as well as plugins that are used for local deployment. 
+* Wildfly 20+ (select the last final version available) ([http://wildfly.org](http://wildfly.org/downloads/))
 * A RDBMS which is supported by Hibernate ([www.hibernate.org](http://www.hibernate.org)) - ensure you record the
   administrator username and password. 
 
@@ -439,18 +682,18 @@ For this example, to use MS SQL Server as the database for the Skyve project:
   database, see instructions [here](https://community.spiceworks.com/how_to/124598-find-the-port-sql-server-is-using-and-change-a-dynamic-port-to-static), 
   again, remember the port number you've entered.
 
-#### Configuring Java
-* Download jdk1.8.0 (if you haven't already) 
-  (http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html) 
+### Configuring Java
+* Download jdk11 (if you haven't already) 
+  (http://www.oracle.com/technetwork/java/javase/downloads/) 
   and install it to your machine.
 * Go your Control Panel->System and Security->System (for Windows). Now select 
   'Advanced system settings' and click the "Environment Variables..." button.
 * Locate 'Path' under System variables double click it, click the _New_ button and 
-  enter this (with the semicolon) `;<jdk1.8.0_xxx installation folder>\bin\` and 
+  enter this (with the semicolon) `;<jdk11 installation folder>\bin\` and 
   click the _OK_ button and _OK_, again _OK_ to close the System Properties 
   dialog box.
 
-#### Configuring the IDE (Windows example)
+### Configuring the IDE (Windows example)
 
 * Create `C:\\_\` (go to C:\->right click->New->Folder then type "_" as the 
 folder name). You may use any folder for you workspace in Eclipse, just make sure you remember 
@@ -459,17 +702,17 @@ any issues with Java paths and spaces.
 * Start Eclipse using Eclipse.exe and select `C:\\_\` as workspace, tick 'Use as 
 default option - do not ask again', Cancel the welcome wizard and Close the welcome 
 tab in the editor frame.
-* Change compiler compliance level to 1.8 (Window -> Preferences -> Java -> Compiler) 
+* Change compiler compliance level to 11 (Window -> Preferences -> Java -> Compiler) 
 press 'Apply' - press Yes for full build, and then press OK.
 * To manage the Wildfly application server from Eclipse:
   * Open the server explorer window if it is not already in your workspace (Window -> Show View -> Servers)
   * Right click inside the server explorer and select New
   * Expand JBoss Community
-  * If WildFly 14.x is not in the list of adapters, you will need to download them:
+  * If WildFly 20+ is not in the list of adapters, you will need to download them:
     * Choose JBoss, WildFly & EAP Server Tools and click Next
     * Accept the licence terms and click Finish
     * Restart Eclipse when prompted
-  * Select WildFly 14.x and click _Next_
+  * Select WildFly 20+ and click _Next_
   * Accept the defaults and click _Next_
   * Click _Finish_
   
@@ -490,15 +733,15 @@ In Eclipse,
 
 After cloning the master, go to Project -> Clean - Select clean all projects and press OK - wait for activity to cease in bottom right corner of the Eclipse window.
 
-#### Starting the server
+### Starting the server
 
-##### Development environment
+#### Development environment
 Skyve provides a bootstrap user configuration (specified in the `.json` file) - this will insert a user with all module roles as a way to get started. The bootstrap configuration is disabled if the instance is a production instance.
 
-##### Other environments
+#### Other environments
 In UAT and PROD environments, Wildfly should be configured as a service. Refer to Wildfly documentation for detailed instructions.
 
-##### Connecting to your local instance from a mobile device
+#### Connecting to your local instance from a mobile device
 
 It is useful to be able to test your Skyve application from your own mobile devices as you develop locally. For example, if you connect your developer PC and mobile device to the same network (for example, your phone's hotspot) use IP address assigned to your PC for the URL in your `.json` settings file - then connect from your phone to your developer PC.
 
@@ -524,25 +767,24 @@ You can then use the browser on your mobile device to connect to the local Skyve
 http://192.168.43.182:8080/myapp
 ```
 
-### Setting up a Skyve instance
+## Setting up a Skyve instance
 
-#### Recommended requirements 
+### Recommended requirements 
 We recommend the following:
 - 4GB RAM for Linux and 8GB RAM for Windows
-- Java JDK 8u211 (this is the JDK for Java 8)
-- Wildfly 16
+- Java JDK 11 (this is the JDK for Java 11)
+- Wildfly 20+
 - Disk space requirements depend on the nature of the application especially if the database and content repository are located on the same drive, however, for most common applications, 50GB drive space will probably be sufficient.
 
 ### Installation of prerequisites
 To run a Skyve application, the server requires:
 
-Java 8 (also called 1.8) - while the JRE is sufficient, the JDK is recommended.
- - Download the Java JDK 8u211 from https://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html 
- - These instructions may assist for linux - https://docs.oracle.com/javase/8/docs/technotes/guides/install/linux_jdk.html#BJFGGEFG (though note that this mentions an slightly older version of Java)
+Java 11 - while the JRE is sufficient, the JDK is recommended.
+ - Download the Java JDK 11 from https://www.oracle.com/technetwork/java/javase/downloads 
 
-Wildfly 16
+Wildfly 20+
  - Download from http://wildfly.org/downloads/   
- - This link may assist - https://linuxtechlab.com/wildfly-10-10-1-0-installation/ 
+ - This link may assist (even though it is for an older version of Wildfly)- https://linuxtechlab.com/wildfly-10-10-1-0-installation/ 
 
 ### Installing database driver
 For database access, load the appropriate driver and declare this driver in the Wildfly standalone.xml configuration file.
@@ -573,28 +815,7 @@ For example, for SQL Server:
     </driver>
 ```
 
-### Problems with utf8 - character sets for other languages - MySQL
-If your Skyve application is not storing utf8 chars correctly, and you're using MySQL, check that MySQL is configured for utf8. Check the charset of the DB and tables, e.g. the default  is 'latin1'.
-
-In the my.cnf file (for MySQL), check that you have the following:
-```
-[client]
-default-character-set=utf8
-
-[mysql]
-default-character-set=utf8
-
-[mysqld]
-collation-server = utf8_unicode_ci
-init-connect='SET NAMES utf8'
-character-set-server = utf8
-```
-
-To keep an existing database once this change has been made, export the schema from MySQL workbench, use text edit change latin1 to utf8, then drop your schema and import the edited one.
-
-If you don't need to keep existing data, then after the my.cnf changes above, drop your schema, create a new one, then use Skyve bootstrap (in the json settings file) to sign in and let Skyve create the new schema for you.
-
-##### Other datasource options
+### Other datasource options
 
 There are a number of optional settings for the application data source file `myApplication-ds.xml`. The file provided from the Skyve project creator is usually satisfactory, however the following describes other options which you may need to consider.
 
@@ -605,7 +826,7 @@ Option | Values | Description
 
 Additional information is available from a number of sources, for example <a href="https://developer.jboss.org/wiki/ConfigDataSources">for example</a>.
 
-#### Additional configuration
+### Additional configuration
 
 The validation stanza provides Wildfly with the required configuration to create new connections as needed.
 
@@ -646,14 +867,40 @@ For example, for external access, typically you would assign as follows:
     <socket-binding name="https" port="${jboss.https.port:443}"/>
 ```
 
-#### Create a folder for content
-Skyve includes the elastic content repository - the repository requires a dedicated folder to persist files. The user credential running wildfly (for example) will need read-write permissions to this folder.
+### Create a folder for content
+Skyve includes content management - for file uploads and images - the repository requires a dedicated folder to persist files. The user credential running wildfly (for example) will need read-write permissions to this folder.
 
-#### Install the wildfly service
+### Create a folder for addins
+Typically, it's easiest to add one add-ins subfolder for all your projects, and refer to it directly in all project JSON settings files:
+
+```json
+	// Add-ins settings
+	addins: {
+		// Where to look for add-ins - defaults to <content.directory>/addins/
+		directory: "C:/_/content/addins/"
+	},	
+```
+(Note the trailing slash.)
+
+Load the skyve-content.zip (this manages content locally) into the addins by:
+* right-click your project and Run As -> Maven install
+* the skyve-content.zip will be downloaded to your target folder - the results of the maven install will include this location, usually <project>\target\
+
+```
+[INFO] --- maven-dependency-plugin:2.8:copy (copy-content-addin-dependency) @ elixan ---
+[INFO] Configured Artifact: org.skyve:skyve-content:7.0.2:zip
+[INFO] Copying skyve-content-7.0.2.zip to C:\_\j11\elixan\target\skyve-content.zip
+```
+
+* copy the skyve-content.zip to the directory specified in the JSON settings file above.
+
+### Install Wildfly as a Service
+
 So that the Skyve application will be always available, install the wildfly service, ensuring that the service will have read/write access to the content folder.
+
 The following may be useful for linux installations - https://community.i2b2.org/wiki/display/getstarted/2.4.2.3+Run+Wildfly+as+a+Linux+Service
 
-#### Skyve application configuration
+## Skyve application configuration
 To deploy a Skyve application, there are typically three artefacts:
 - the application '.war' folder
 - the datasource 'ds.xml' file
@@ -692,7 +939,12 @@ First, sign up for a Google Recaptcha key as follows:
 7. Read and accept the terms of use
 8. Click Submit
 
-Once you have received your key, copy your key into your JSON file under `api` -> `googleRecaptchaSiteKey:` 
+Once you have received your *site* key, copy your key into the Startup Configuration section of the Admin menu of your Skyve application:
+1. From the Admin menu, open Configuration
+2. Change tabs to the Startup Configuration tab
+3. Scroll down to the Security Settings section, enter the Key and then press Save at the top of the form.
+
+Alternatively, you can place the API key in the project JSON file under `api` -> `googleRecaptchaSiteKey:` 
 
 ```
 	// API Settings
@@ -836,7 +1088,6 @@ as follows:
 </jboss-web>
 ```
 
-
 ### Example deployment instructions for Single Sign-on
 
 The following steps are to install an instance of XXX onto a vanilla
@@ -847,9 +1098,9 @@ Windows 10.
 Install Java JDK
 
 Set `JAVA\_HOME` to location of the Java root directory - e.g.
-`C:\Java\jdk1.8.0_181`
+`C:\Java\jdk11...`
 
-Set `PATH` to include `Java\bin` - e.g. `C:\Java\jdk1.8.0_181\bin`
+Set `PATH` to include `Java\bin` - e.g. `C:\Java\jdk11...\bin`
 
 copy `sqljdbc4.jar` and `sqljdbc\_auth.dll` to `java\jdk\jre\lib\ext`
 
@@ -925,175 +1176,18 @@ if error - check that you have an account in XXX, check
 `C:\wildfly\standalone\log\server.log` to see your user
 principal is being recognised
 
-### Example deployment problems
-Key problems in the `myApplication.json` configuration file block your project from deploying successfully and sometime yield non-obvious errors or stack output. The following provides three common examples.
 
-#### Example output for incorrect content folder
-Incorrect content folder - the folder doesn't exist:
-
-```json
-	// Content settings
-	content: {
-		// directory path
-		directory: "C:/skyve/content/", 
-		// CRON Expression for CMS Garbage Collection job - run at 7 past the hour every hour
-		gcCron: "0 7 0/1 1/1 * ? *", 
-		// Attachments stored on file system or inline
-		fileStorage: true
-	},
-```
-
-In this case, the folder C:/skyve/content/ doesn't exist or the name is incorrect.
-
-Attempting to deploy in this case yields results such as the following:
-```
-15:51:09,837 ERROR [org.jboss.msc.service.fail] (ServerService Thread Pool -- 61) MSC000001: Failed to start service jboss.undertow.deployment.default-server.default-host./phweb: org.jboss.msc.service.StartException in service jboss.undertow.deployment.default-server.default-host./phweb: java.lang.RuntimeException: java.lang.IllegalStateException: content.directory C:/skyve/content/ does not exist.
-	at org.wildfly.extension.undertow.deployment.UndertowDeploymentService$1.run(UndertowDeploymentService.java:85)
-	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
-	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
-	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
-	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
-	at java.lang.Thread.run(Thread.java:748)
-	at org.jboss.threads.JBossThread.run(JBossThread.java:320)
-Caused by: java.lang.RuntimeException: java.lang.IllegalStateException: *content.directory C:/skyve/content/ does not exist.*
-	at io.undertow.servlet.core.DeploymentManagerImpl.deploy(DeploymentManagerImpl.java:236)
-	at org.wildfly.extension.undertow.deployment.UndertowDeploymentService.startContext(UndertowDeploymentService.java:100)
-	at org.wildfly.extension.undertow.deployment.UndertowDeploymentService$1.run(UndertowDeploymentService.java:82)
-	... 6 more
-Caused by: java.lang.IllegalStateException: content.directory C:/skyve/content/ does not exist.
-	at org.skyve.impl.web.SkyveContextListener.contextInitialized(SkyveContextListener.java:102)
-	at io.undertow.servlet.core.ApplicationListeners.contextInitialized(ApplicationListeners.java:187)
-	at io.undertow.servlet.core.DeploymentManagerImpl$1.call(DeploymentManagerImpl.java:200)
-	at io.undertow.servlet.core.DeploymentManagerImpl$1.call(DeploymentManagerImpl.java:171)
-	at io.undertow.servlet.core.ServletRequestContextThreadSetupAction$1.call(ServletRequestContextThreadSetupAction.java:42)
-	at io.undertow.servlet.core.ContextClassLoaderSetupAction$1.call(ContextClassLoaderSetupAction.java:43)
-	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
-	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
-	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
-	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
-	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
-	at io.undertow.servlet.core.DeploymentManagerImpl.deploy(DeploymentManagerImpl.java:234)
-	... 8 more
-```
-
-#### Example incorrect/invalid customer in bootstrap stanza
-Incorrect customer in the bootstrap- there is no such customer defined:
-
-```json
-// bootstrap user settings - creates a user with all customer roles assigned, if the user does not already exist
-bootstrap: {
-	customer: "skyve",
-	user: "admin",
-	password: "admin"
-}
-```
-
-In this case, there is no _skyve_ customer declaration file within the _customer_ folder.
-
-Attempting to deploy in this case yields results such as the following:
-
-```
-15:48:03,814 ERROR [stderr] (ServerService Thread Pool -- 68) org.skyve.metadata.MetaDataException: A problem was encountered.
-15:48:03,814 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.skyve.impl.metadata.repository.LocalDesignRepository.getCustomer(LocalDesignRepository.java:174)
-15:48:03,814 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.skyve.impl.metadata.user.UserImpl.getCustomer(UserImpl.java:198)
-15:48:03,814 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.skyve.impl.metadata.user.SuperUser.getAccessibleModuleNames(SuperUser.java:85)
-15:48:03,814 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.skyve.impl.persistence.hibernate.AbstractHibernatePersistence.resetDocumentPermissionScopes(AbstractHibernatePersistence.java:528)
-15:48:03,814 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.skyve.impl.persistence.hibernate.AbstractHibernatePersistence.setUser(AbstractHibernatePersistence.java:500)
-15:48:03,814 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.skyve.impl.web.SkyveContextListener.contextInitialized(SkyveContextListener.java:276)
-15:48:03,814 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.core.ApplicationListeners.contextInitialized(ApplicationListeners.java:187)
-15:48:03,814 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.core.DeploymentManagerImpl$1.call(DeploymentManagerImpl.java:200)
-15:48:03,815 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.core.DeploymentManagerImpl$1.call(DeploymentManagerImpl.java:171)
-15:48:03,815 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.core.ServletRequestContextThreadSetupAction$1.call(ServletRequestContextThreadSetupAction.java:42)
-15:48:03,815 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.core.ContextClassLoaderSetupAction$1.call(ContextClassLoaderSetupAction.java:43)
-15:48:03,815 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
-15:48:03,815 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
-15:48:03,815 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
-15:48:03,815 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
-15:48:03,815 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
-15:48:03,815 ERROR [stderr] (ServerService Thread Pool -- 68) 	at io.undertow.servlet.core.DeploymentManagerImpl.deploy(DeploymentManagerImpl.java:234)
-15:48:03,815 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.wildfly.extension.undertow.deployment.UndertowDeploymentService.startContext(UndertowDeploymentService.java:100)
-15:48:03,816 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.wildfly.extension.undertow.deployment.UndertowDeploymentService$1.run(UndertowDeploymentService.java:82)
-15:48:03,816 ERROR [stderr] (ServerService Thread Pool -- 68) 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
-15:48:03,816 ERROR [stderr] (ServerService Thread Pool -- 68) 	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
-15:48:03,816 ERROR [stderr] (ServerService Thread Pool -- 68) 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
-15:48:03,816 ERROR [stderr] (ServerService Thread Pool -- 68) 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
-15:48:03,816 ERROR [stderr] (ServerService Thread Pool -- 68) 	at java.lang.Thread.run(Thread.java:748)
-15:48:03,816 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.jboss.threads.JBossThread.run(JBossThread.java:320)
-15:48:03,816 ERROR [stderr] (ServerService Thread Pool -- 68) Caused by: org.skyve.metadata.MetaDataException: Could not unmarshal customer at /C:/_/pgibsa/Phylloxera/javaee/pgibsa.ear/apps.jar/customers/skyve/skyve.xml
-15:48:03,816 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.skyve.impl.util.XMLMetaData.unmarshalCustomer(XMLMetaData.java:185)
-15:48:03,816 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.skyve.impl.metadata.repository.LocalDesignRepository.getCustomer(LocalDesignRepository.java:164)
-15:48:03,817 ERROR [stderr] (ServerService Thread Pool -- 68) 	... 24 more
-15:48:03,817 ERROR [stderr] (ServerService Thread Pool -- 68) Caused by: java.io.FileNotFoundException: C:\_\pgibsa\Phylloxera\javaee\pgibsa.ear\apps.jar\customers\skyve\skyve.xml (The system cannot find the path specified)
-15:48:03,817 ERROR [stderr] (ServerService Thread Pool -- 68) 	at java.io.FileInputStream.open0(Native Method)
-15:48:03,817 ERROR [stderr] (ServerService Thread Pool -- 68) 	at java.io.FileInputStream.open(FileInputStream.java:195)
-15:48:03,817 ERROR [stderr] (ServerService Thread Pool -- 68) 	at java.io.FileInputStream.<init>(FileInputStream.java:138)
-15:48:03,817 ERROR [stderr] (ServerService Thread Pool -- 68) 	at java.io.FileInputStream.<init>(FileInputStream.java:93)
-15:48:03,817 ERROR [stderr] (ServerService Thread Pool -- 68) 	at org.skyve.impl.util.XMLMetaData.unmarshalCustomer(XMLMetaData.java:173)
-15:48:03,817 ERROR [stderr] (ServerService Thread Pool -- 68) 	... 25 more
-```
-
-#### Missing comma or badly formed json file
-
-Missing comma or badly formed json file:
-
-```json
-	// bootstrap user settings - creates a user with all customer roles assigned, if the user does not already exist
-	bootstrap: {
-		customer: "skyve",
-		user: "admin",
-		password: "admin"
-	} 
-	// When taking photos or uploading images they will be compressed to within the size below (if possible)
-	maxUploadedFileSizeInBytes: 1000000 // 10 MB
-}
-```
-
-For example, should have been a comma after the bootstrap stanza.
-
-Attempting to deploy in this case yields results such as the following:
-
-```
-15:40:16,947 ERROR [org.jboss.msc.service.fail] (ServerService Thread Pool -- 69) MSC000001: Failed to start service jboss.undertow.deployment.default-server.default-host./phweb: org.jboss.msc.service.StartException in service jboss.undertow.deployment.default-server.default-host./phweb: java.lang.RuntimeException: java.lang.ClassCastException: java.lang.Long cannot be cast to java.util.Map
-	at org.wildfly.extension.undertow.deployment.UndertowDeploymentService$1.run(UndertowDeploymentService.java:85)
-	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
-	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
-	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
-	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
-	at java.lang.Thread.run(Thread.java:748)
-	at org.jboss.threads.JBossThread.run(JBossThread.java:320)
-Caused by: java.lang.RuntimeException: java.lang.ClassCastException: java.lang.Long cannot be cast to java.util.Map
-	at io.undertow.servlet.core.DeploymentManagerImpl.deploy(DeploymentManagerImpl.java:236)
-	at org.wildfly.extension.undertow.deployment.UndertowDeploymentService.startContext(UndertowDeploymentService.java:100)
-	at org.wildfly.extension.undertow.deployment.UndertowDeploymentService$1.run(UndertowDeploymentService.java:82)
-	... 6 more
-Caused by: java.lang.ClassCastException: java.lang.Long cannot be cast to java.util.Map
-	at org.skyve.impl.web.SkyveContextListener.getObject(SkyveContextListener.java:378)
-	at org.skyve.impl.web.SkyveContextListener.contextInitialized(SkyveContextListener.java:253)
-	at io.undertow.servlet.core.ApplicationListeners.contextInitialized(ApplicationListeners.java:187)
-	at io.undertow.servlet.core.DeploymentManagerImpl$1.call(DeploymentManagerImpl.java:200)
-	at io.undertow.servlet.core.DeploymentManagerImpl$1.call(DeploymentManagerImpl.java:171)
-	at io.undertow.servlet.core.ServletRequestContextThreadSetupAction$1.call(ServletRequestContextThreadSetupAction.java:42)
-	at io.undertow.servlet.core.ContextClassLoaderSetupAction$1.call(ContextClassLoaderSetupAction.java:43)
-	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
-	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
-	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
-	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
-	at io.undertow.servlet.api.LegacyThreadSetupActionWrapper$1.call(LegacyThreadSetupActionWrapper.java:44)
-	at io.undertow.servlet.core.DeploymentManagerImpl.deploy(DeploymentManagerImpl.java:234)
-	... 8 more
-```
-
-### Installing Skyve in production
+### Installing Skyve in Production
 
 The following are our personal instructions for deploying a Skyve application in a production environment. You may need to tweak these to suit your personal situation, and feel free to submit a pull request to update these instructions if you find something better or they become out of date.
 
-#### Wildfly standalone production install (Windows)
+### Wildfly standalone production install (Windows)
 
-These instructions apply to a standalone server installation of Wildfly 16 on Windows server connecting to Microsoft SQL Server.
+These instructions apply to a standalone server installation of Wildfly 20+ on Windows server connecting to Microsoft SQL Server.
 
-- [download](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html) and install the latest JDK 
-- create a SYSTEM "JAVA_HOME" system environment variable and set it to where you installed the JDK to (`C:\Program Files\Java\jdk1.8.0_211` by default, substitute with correct Java version path)
-- [download](http://wildfly.org/downloads/) Wildfly 16.x Final 
+- [download](http://www.oracle.com/technetwork/java/javase/downloads/) and install the JDK 11+
+- create a SYSTEM "JAVA_HOME" system environment variable and set it to where you installed the JDK to (`C:\Program Files\Java\jdk11` by default, substitute with correct Java version path)
+- [download](http://wildfly.org/downloads/) Wildfly 20+ 
   - extract to C:\wildfly
 - [download](https://docs.microsoft.com/en-us/sql/connect/jdbc/microsoft-jdbc-driver-for-sql-server?view=sql-server-2017) and copy the sql server driver jar and module.xml (below) to `C:\wildfly\modules\system\layers\base\com\microsoft\sqlserver\main`
 
@@ -1219,7 +1313,7 @@ or, if using Active Directory authentication:
 - start the wildfly service and make sure the datasources deploy successfully
 - deploy projectName.war
 
-##### Troubleshooting
+### Troubleshooting
 If you receive an error like:
 
 ```
@@ -1239,7 +1333,7 @@ then check that your JNDI name in the standalone.xml (`<module-option name="dsJn
   <datasource jndi-name="java:/{projectNameDB}" pool-name="skyve" enabled="true" jta="true" use-ccm="false">
   ```
 
-#### Managing Wildfly Server log file size
+### Managing Wildfly Server log file size
 
 To manage/(limit) the fize size for logging, modify the `standalone.xml` file as follows:
 
@@ -1268,7 +1362,7 @@ In root logger
            </root-logger>
 ```
 
-#### Wildfly Bitnami production install (Windows)
+### Wildfly Bitnami production install (Windows)
 
 These instructions apply to Bitnami Wildfly 10 stack installation on Windows server modified to connect to Microsoft SQL Server.
 	
@@ -1326,17 +1420,17 @@ These instructions apply to Bitnami Wildfly 10 stack installation on Windows ser
 </security-domain>
 ```
 
-* rename folder `Bitnami\wildfly-10.1.0-1\java` to `Bitnami\wildfly-10.1.0-1\javaold`
-* Download latest Java 8 64 runtime but select to change destination folder during install to `Bitnami\wildfly-10.1.0-1\java`
-* Add java_home env variable and append `%JAVA_HOME%\bin` to path env variable eg `JAVA_HOME=D:\Bitnami\wildfly-10.1.0-1\java`, `Path=%JAVA_HOME%\bin`
+* rename folder `Bitnami\wildfly-20.x\java` to `Bitnami\wildfly-20.x\javaold`
+* Download latest Java 11 64 runtime but select to change destination folder during install to `Bitnami\wildfly-20.x\java`
+* Add java_home env variable and append `%JAVA_HOME%\bin` to path env variable eg `JAVA_HOME=D:\Bitnami\wildfly-20.x\java`, `Path=%JAVA_HOME%\bin`
 * Add env variable:
   * name: `JAVA_OPTS`
   * value: `-Xms4G -Xmx4G -XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=2G`
 * Ensure the following...
   * `ErrorDocument 503 /static/index.html` is in Bitnami\wildfly-10.1.0-1\apache2\conf\bitnami\bitnami.conf
-* Copy static.zip to `Bitnami\wildfly-10.1.0-1\apache2\htdocs\`
-* Copy static.zip to `Bitnami\wildfly-10.1.0-1\wildfly\welcome-content\`
-* Change Bitnami\wildfly-10.1.0-1\wildfly\conf\wildfly.conf that contains
+* Copy static.zip to `Bitnami\wildfly-20.x\apache2\htdocs\`
+* Copy static.zip to `Bitnami\wildfly-20.x\wildfly\welcome-content\`
+* Change Bitnami\wildfly-20.x\wildfly\conf\wildfly.conf that contains
   ```xml
   <Location />
   ProxyPass http://localhost:8080/
@@ -1353,7 +1447,7 @@ ProxyPassReverse / http://localhost:8080/
 ```
 (literally replace the whole lot exactly as shown - so that there are no <Location/> tags)
 
-* Change the path of the `welcome-content` path attribute in the file handler to point to `welcome-content\static\` in `Bitnami\wildfly-10.1.0-1\wildfly\standalone\configuration\standalone.xml` like so
+* Change the path of the `welcome-content` path attribute in the file handler to point to `welcome-content\static\` in `Bitnami\wildfly-20.x\wildfly\standalone\configuration\standalone.xml` like so
   ```xml
   <file name="welcome-content" path="${jboss.home.dir}/welcome-content/static/"/>
   ```
@@ -1376,7 +1470,7 @@ ProxyPassReverse / http://localhost:8080/
 
 ## Common Wildfly settings
 
-### Managing Wildfly server logs
+## Managing Wildfly server logs
 
 You can either use the periodic rotating file handler:
 
@@ -1405,7 +1499,7 @@ or the size rotating file handler:
 </size-rotating-file-handler>
 ```
 
-### Managing Post Size (large file upload)
+## Managing Post Size (large file upload)
 
 Add the `max-post-size` setting to the http-listener as follows:
 
@@ -1423,7 +1517,9 @@ Add the `max-post-size` setting to the http-listener as follows:
 	</server>
 ```
 
-**[⬆ back to top](#deploying-a-skyve-application)**
+Specifying a `max-post-size` of `0` will disable the upload limit entirely.
+
+**[⬆ back to top](#problem-solver)**
 
 ---
 **Previous [Backup and restore](./../_pages/backup-restore.md)**
