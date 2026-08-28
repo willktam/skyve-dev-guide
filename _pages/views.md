@@ -18,13 +18,50 @@ View files are located within the *views* folder in the document
 package. Typically, users interact with a detail view after zooming into
 the document from a list.
 
-Two views can be declared for each document, and views can contain combinations of view components.
+![Views package](./../assets/images/views/create-view.png "Views package")
 
-  View        | Description
-  -----------|-----------
-  edit.xml    | The basic view declaration for detail editing of a bean (normally accessed by zooming into a row from a list).<br/><br/>Menu items can also target edit views directly. In this case the menu item will trigger `newInstance()` and a new document instance will be returned (and therefore displayed). To show a singleton (a document instance which is the only applicable existing instance within the context), the `newInstance()` method can be overridden to select and return an existing bean in place of the newly created instance.<br/><br/>If a *create.xml* is supplied, the *edit.xml* file is only used after the document is created.
-  create.xml  | A special case of edit view which is used if *create.xml* supplied and if `isCreated()` is false similar to the following
+Two types of views can be declared for each document, and views can contain combinations of view components.
+
+View        | Description
+------------|-----------
+edit.xml    | The basic view declaration for detail editing of a bean (normally accessed by zooming into a row from a list).<br/><br/>Menu items can also target edit views directly. In this case the menu item will trigger `newInstance()` and a new document instance will be returned (and therefore displayed). To show a singleton (a document instance which is the only applicable existing instance within the context), the `newInstance()` method can be overridden to select and return an existing bean in place of the newly created instance.<br/><br/>If a *create.xml* is supplied, the *edit.xml* file is only used after the document is created.
+create.xml  | Optional initial creation view. If a *create.xml* exists and the current bean has NOT yet satisfied the `created` condition (e.g. it has not been persisted), Skyve renders *create.xml* instead of *edit.xml*. After the bean is saved and the `created` condition evaluates to true (commonly via an expression such as `isPersisted()`), subsequent opens display *edit.xml*. See the "Create vs Edit view selection" section below for full lifecycle details and an example condition.
   
+### Create vs Edit view selection
+
+When both `create.xml` and `edit.xml` are supplied for a document, Skyve decides which view to render based on the value of the special `created` condition at runtime.
+
+**Lifecycle summary:**
+
+1. A new instance constructed (e.g. via `newInstance()` or implicit New action) -> `created` condition is evaluated.
+2. If `created` is false, and `create.xml` exists, Skyve renders `create.xml`.
+3. User enters data and saves -> the instance is persisted.
+4. On the next render (or immediate rerender post-save), `created` is re-evaluated. Once it evaluates to true, `edit.xml` is used from then on.
+
+**Typical `created` condition**
+
+Most documents implement the `created` condition using the persistence state of the bean. For example, the Admin module `User` document defines:
+
+```xml
+<condition name="created">
+	<description>True when this User has been created</description>
+	<expression>isPersisted()</expression>
+</condition>
+```
+
+**Key points:**
+
+* `isPersisted()` (available in the expression context) returns true once the bean has been saved (has a primary key/bizId in the database).
+* If you do not provide `create.xml`, Skyve always renders `edit.xml` regardless of the `created` condition.
+* If you provide `create.xml` but omit a `created` condition, Skyve will only render the document's `edit.xml`.
+* You can tailor the `created` condition to switch to the edit view only after some additional business rule (e.g. required related entities) is satisfied, not strictly the first persistence.
+
+**Use cases for `create.xml`:**
+
+* Simplified first-step data capture before exposing a complex full edit layout.
+* Collecting minimal required attributes to establish identity, after which additional tabs/containers appear in `edit.xml`.
+* Providing a focused onboarding experience (e.g. a wizard) distinct from later maintenance screens.
+
 ### View declaration attributes
 
 Attribute | Description
@@ -43,26 +80,7 @@ In desktop rendering mode (the SmartClient renderer), the application tool bar p
 
 Don't forget, that you can also provide attribute level help using the `<description>` attribute metadata.
 
-### Create view
-
-The `create` view concept is useful in cases where a several-step wizard type view is required specifically for the creation of a new record where this is signficantly different to the typical data entry view, though in most cases, the edit view is satisfactory.
-
-To use a separate create view, create a view called `create.xml` and ensure the `name` property within the view file is `create`.
-
-Skyve will use the create view if the document declares a `created` condition.
-
-```xml
-<condition name="created">
-	<description>Created</description>
-	<expression>
-		<![CDATA[isPersisted()]]>
-	</expression>
-</condition>
-```
-
-An example of a create view can be found in the Skyve `admin` module for the `User` document. In this case, a create view is useful because creating a new User involves several steps not normally required for simple data entry. Compare this with the `admin.Contact` document - where the basic edit view is sufficient for creating new Contacts and a `create` view is not required.
-
-### Containers
+## Containers
 
 Containers are layout devices which contain other elements.
 
@@ -75,10 +93,23 @@ Containers share basic properties:
   percentageWidth   | Percentage of the horizontal visible area over which the container (and contents) will be stretched.
   pixelWidth        | Width of the container in pixels.
   pixelHeight       | Height of the container in pixels.
+  responsiveWidth   | How many columns the container will span in responsive mode. Maximum value is 12.
 
 _Container properties_
 
-#### Autofit behaviour
+Skyve Responsive mode (PrimeFaces) uses a 12 column grid to perform the responsive layout, as is common with many other front end CSS frameworks. To specify the number of columns to use, Skyve exposes a `responsiveWidth`. If a view specifies a responsive and a percentage width, _responsive width will take priority in responsive mode_.
+
+Desktop mode (SmartClient) can use a percentage or absolute pixel width for layout. It does not have any concept of a 12 column grid, if a responsive width is specified, it will be converted to a percentage. If a view specifies a responsive and a percentage width, _percentage width will take priority in desktop mode_.
+
+If you view has specified both, you will see different behaviour in the different modes, for example:
+
+```xml
+<form responsiveWidth="12" percentageWidth="60" border="true">
+```
+
+In responsive mode, a responsive width of 12 will span the width of the entire container it is in (equivalent 100%). However, when you switch this to desktop mode, this will only use 60% of the available container width.
+
+### Autofit behaviour
 
 Rendering behaviour is specific to browsers, however Skyve will attempt
 to render the view as declared. Unless pixel sizes are specified, Skyve
@@ -103,7 +134,7 @@ of items contained.
 
 _View containers_
 
-#### Containers Example #1 - Two side by side vboxes
+### Containers Example #1 - Two side by side vboxes
 
 ![Containers Example 1 Wireframe](../assets/images/views/ViewsPic1.PNG 
 "Wireframe example of 1 hbox and 2 vboxes")
@@ -254,7 +285,7 @@ These recent changes have altered the edit view like so:
 ![Required/Renamed Fields](../assets/images/views/RequiredRenamedFields.PNG "Renamed and Required fields")
 
 
-#### Containers Example #2 - Two side by side vboxes and one hbox underneath
+### Containers Example #2 - Two side by side vboxes and one hbox underneath
 
 ![Containers Example 2 Wireframe](../assets/images/views/ViewsPic2.PNG 
 "Wireframe example of 2 vboxes with one hbox underneath")
@@ -349,7 +380,7 @@ But once 'Time field 2' is populated and saved, 'Date/Time field 2' is visible:
 ![Visibility Example 2](../assets/images/views/Visibility2.PNG 
 "Visibility example with field showing")
 
-#### Containers Example #3 - Tab Pane
+### Containers Example #3 - Tab Pane
 
 If we now wanted to further separate our top half (Left vbox and Right 
 vbox) and our second hbox underneath, we could use a tabpane, and place 
@@ -525,27 +556,65 @@ of the available horizontal space.
 ***Tip:*** To allow the view to autofit and resize correctly, leave at
 least one column unsized.
 
-### Table
+### Tab Pane
 
-Deprecated. This feature is now met by using a disabled dataGrid.
+Tab panes contain tabs. Tabs may also contain other containers.
 
-### Item
+Attribute               | Description
+------------------------|------------
+minPixelHeight          | the minimum height (as a number) of the tab pane, used in desktop mode
+responsiveWidth         | the width of the 12-column repsonsive view this tab pane should occupy
+selectedTabIndexBinding | the binding on the document that controls the selected tab index (starting at 0), e.g. `selectedTabIndexBinding="selectedTab"`
 
-  Property     | Description
-  ------------ | ------------
-  align        | Controls alignment of the item (left, right or centre).
-  colspan      | The number of columns which the item spans.
-  help 		   | tool-tip help text for the item
-  label        | A label to be displayed irrespective of the type of widget the item contains.
-  labelAlign   | Controls the alignment of the item label.
-  required     | Whether the contained widget must have a value set before any actions can be completed.
-  rowspan      | The number of rows which the item spans.
-  showHelp     | Whether the contained widget will include a tool-tip help icon button, for a widget with an attribute which has a *shortDescription* defined.
-  showLabel    | Whether the label of the contained widget will be displayed.
+#### Specifying the selected tab
 
-_Item properties_
+Occiasionally it is useful to be able to specify the selected tab in a tab pane after the user performs an action or during a certain stage in the event lifecycle. 
+This can be done by specifying the `selectedTabIndexBinding` attribute on the tab pane. This attribute should be bound to an integer attribute on the document. The integer 
+attribute should be initialised to the index of the tab you wish to be selected by default. The first tab index is `0`, then goes up by 1 for each tab declared in the 
+order the tabs are declared in the view.
 
-### Widget
+For example, you could add the following attribute to your document to hold the selected tab:
+
+```xml
+	<integer name="selectedTab" audited="false" persistent="false" trackChanges="false" usage="view">
+		<documentation>Used to be able to set which tab is selected when moving around views.</documentation>
+		<displayName>Selected Tab</displayName>
+		<defaultValue>0</defaultValue>
+	</integer>
+```
+
+And then declare a `tabPane` in your view to use this attribute:
+
+```xml
+	<tabPane selectedTabIndexBinding="selectedTab">
+		<tab title="Details">
+		</tab>
+		<tab title="Notes">
+		</tab>
+	</tabPane>
+```
+
+And in an action, if you wanted to always load the first tab, or return to the first tab after an action, in your code you could specify: 
+
+```java
+bean.setSelectedTab(Integer.valueOf(0));
+```
+
+Another option is to reset the selected tab each time the view is opened, performed by overriding the `preExecute()` method in the document's Bizlet. 
+For example, to ensure the first tab is always selected when the view is opened in edit mode:
+
+```java
+@Override
+public DocumentName preExecute(ImplicitActionName actionName, DocumentName bean, Bean parentBean, WebContext webContext) throws Exception {
+    if (ImplicitActionName.Edit.equals(actionName)) {
+        // Reset tab to the first tab (index 0)
+        bean.setSelectedTab(0);
+    }
+    super.preExecute(actionName, bean, parentBean, webContext);
+}
+```
+
+## Widget
 
 Skyve provides a number of view widgets, which can also be defined as
 document attribute defaultWidget. When widgets contain labels, the label
@@ -556,51 +625,329 @@ will be displayed in bold type if the attribute is required.
 		<td>Widget</td><td>Description</td><td>Example</td><td>Allowed containers</td>
 	</thead>
 	<tbody>
-		<tr><td>  blurb              </td><td> displays the contained markup inside a <code>div</code> with binding substitutions<br/>Unlike other widgets, the blurb is not required to be contained within a <code>form</code> container </td><td> <img src="../assets/images/views/blurb-binding-substitution.png" alt="blurb"/>
-</td><td>All</td></tr>
-		<tr><td>  button             </td><td> can be placed within the view when the <em>inActionPanel</em> flag for an Action is set to <code>false</code><br/><br/>If the Action is declared to be in the Action Panel, then no button widget is required to be declared.</td><td> <img src="../assets/images/views/image99.png" alt="button"/>
-		</td><td>All</td></tr>
-		<tr><td>checkBox           </td><td> Tri-state check box (null/true/false)  - for a two-state checkBox set the property `triState="false"`</td><td> <img src="../assets/images/views/image100.png" alt="checkBox"/></td><td>Form</td></tr>
-		<tr><td>checkMembership </td><td>Providing for checkbox multiselection</td><td></td><td>Non-form</td></tr>
-		<tr><td>colourPicker       </td><td> displays a text box containing the colour code value together with a sample square of the colour<br/><br/>Clicking on the sample square activates a colour selector popup. </td><td> <img src="../assets/images/views/image101.png" alt="colourPicker"/> In this example, the colour button at the RHS will open a colour selector as shown below:<br/> <img src="../assets/images/views/image102.png" alt="colourPicker"/></td><td>Form</td></tr>
-		<tr><td>  combo              </td><td> drop-down selector for enumerations or where a domain type is specified for the document attribute </td><td> <img src="../assets/images/views/image103.png" alt="combo"/>
-		</td><td>Form</td></tr>
-		<tr><td>comparison</td><td>displays the differences between two beans instances and the ability for the users to apply differences between the instances (for an example, see the *Audits* function in the Skyve admin module </td><td><img src="../assets/images/views/comparison.png" alt="comparison"/></td><td>Non-form</td></tr>
-		<tr><td>component</td><td>a component declares the inclusion of other view declarations, or sections of view declarations, allowing re-use of view declaration</td><td></td><td>Non-form</td></tr>
-		<tr><td>  contentImage       </td><td> displays the loaded image along with an upload action </td><td> <img src="../assets/images/views/image104.png" alt="contentImage"/>
-		</td><td>Form</td></tr>
-		<tr><td>contentLink        </td><td> displays a hyperlink to open the content in a new browers window together with an upload action </td><td> <img src="../assets/images/views/image105.png" alt="contentLink"/></td><td>Form</td></tr>
-		<tr><td>dataGrid</td><td></td><td></td><td>Non-form</td></tr>
-		<tr><td>dataGridRepeater</td><td></td><td></td><td>Non-form</td></tr>
-		<tr><td>default            </td><td> If used in a view, this will render whatever the default widget is.<br/><br/>Either the <em>defaultWidget</em> declared on the document attribute or the Skyve default control for the attribute type.</td><td></td>
-		</td><td>Form</td></tr>
-		<tr><td>dialogButton       </td><td> Not yet implemented.</td><td></td><td>All</td></tr>		
-		<tr><td>geoLocator         </td><td> Geolocator will render a Map button, when pressed, a Geolocation window will appear with a pointer to the address or position bound to the Geolocator widget. <br/> <br/>A new address or location can be selected within the Geolocator Map if the Geolocator is not disabled.<br/> <br/>The Geolocator Widget has multiple bindings which interact with the map:<ul><li>addressBinding</li><li>cityBinding</li><li>stateBinding</li><li>postcodeBinding</li><li>countryBinding</li><li>latitudeBinding</li><li>longitudeBinding</li></ul> </td><td> When the Map button is clicked, the geolocator (shown) will be displayed in a modal window. <img src="../assets/images/views/image107.png" alt="geoLocator"/></td><td>All</td></tr>
-		<tr><td>geometry	         </td><td> displays a Well Known Text (WKT) representation of the geometry, with a map-based selection tool</td><td></td><td>Form</td></tr>
-		<tr><td>html </td><td> displays HTML content together with an Edit button (only available for SmartClient renderer) <br/><br/> When the edit button is clicked, a popup HTML editor window is displayed allowing users to create rich HTML. </td><td> <img src="../assets/images/views/imageHTML_SC.png" alt="html"/></td><td>Form</td></tr>
-		<tr><td>inject </td><td> allows the inclusion of javascript snippets within the view </td><td> <img src="../assets/images/views/inject.png" alt="inject"/></td><td>Non-form</td></tr>
-		<tr><td>label </td><td> Simple text. </td><td> <img src="../assets/images/views/image109.png" alt="label"/></td><td>All</td></tr>
-		<tr><td>link </td><td> provides a <code>link</code> style approach to Skyve platform features (partially implemented)<br/>options include <ul><li>actionReference - perform an action</li><li>contentReference - access a content item</li><li>defaultListViewReference - open a default list view</li><li>editViewReference - open an edit view for a binding</li><li>externalReference - a link to an external resource</li><li>implicitActionReference - perform a Skyve implicit action</li><li>queryListViewReference - open a list view based on a query</li><li>reportReference - perform a report action (view a report)</li><li>resourceReference - view a Skyve resource</li></ul> </td><td> <img src="../assets/images/views/link.png" alt="link"/></td><td>All</td></tr>
-		<tr><td>listGrid</td><td>list grid component included in a view - the listGrid provides the same functionality as menu lists within the context of a custom view for the management of unrelated  or informally-related bean instances</td><td><img src="../assets/images/views/listGrid.png" alt="listGrid"/></td><td>Non-form</td></tr>
-		<tr><td>listMembership</td><td>list-based multi-selection tool</td><td><img src="../assets/images/views/listMembership.png" alt="listMembership"/></td><td>Non-form</td></tr>
-		<tr><td>listRepeater</td><td>basic scrollable list for display</td><td><img src="../assets/images/views/listRepeater.png" alt="listRepeater"/></td><td>Non-form</td></tr>
-		<tr><td>lookup </td><td> Deprecated. </td><td> </td><td>Form</td></tr>
-		<tr><td>lookupDescription </td><td> <code>lookupDescription</code> is used to display an association to another document, and combines a combo with a pick button. <br/><br/> Users may select a value from the combo, or type values into the text box which will locate a matching value in the combo drop-down list if found. <br/><br/> When the pick button is pressed, a Pick window containing a listGrid is displayed, showing eligible values as declared in the document association. <br/><br/> Whereas normally double-clicking in a grid will zoom into the row, double-clicking in a Pick grid will select that value, close the popup and set the value of the <code>lookupDescription</code> combo next to the Pick button. <br/><br/> The down-arrow button reveals options to Edit (i.e. Zoom), New or Clear the reference. <br/> More features of the <code>lookupDescription</code> are explained in the next section. </td><td> <img src="../assets/images/views/image110.png" alt="lookupDescription"/> <br/> In this example the <code>bizKey</code> of the currently associated document instance is displayed in the control. To use another attribute change the lookupDescription's <code>descriptionBinding</code> attribute. <br/> If the Pick button is clicked, a listGrid of eligible document instances is shown in a modal window. <br/> <img src="../assets/images/views/image111.png" alt="pick"/> <br/> The down-arrow selector button will display options for Edit (edit the referenced document on-the-fly), New (create a new potential reference on-the-fly) and Clear (clear the reference). <br/> <img src="../assets/images/views/image112.png" alt="lookupDescription actions"/></td><td>Form</td></tr>
-		<tr><td>map</td><td></td><td></td><td>Non-form</td></tr>
-		<tr><td>password </td><td> a textField which obfuscates the entered value </td><td> <img src="../assets/images/views/image113.png" alt="password"/></td><td>Form</td></tr>
-		<tr><td>progressBar </td><td> Not yet implemented.</td><td></td><td>Non-form</td></tr>
-		<tr><td>  radio </td><td> radio selector for enumerations or for document attributes where a domain type is specified <br/> <br/> Radios may be laid out vertically or horizontally, using the property <em>vertical</em>. <br/> Vertical arrangement is the default arrangement for radio selectors when no arrangement is specified. <br/><br/>Radios can also be used for boolean attributes. To do this, declare a constant domain for the attribute, and override the `getConstantDomainValues` Bizlet method to return two domain values<ul><li>`new DomainValue(Boolean.TRUE.toString(), "Yes");`</li><li>`new DomainValue(Boolean.FALSE.toString(), "No");`</li></ul></td><td> <img src="../assets/images/views/image114.png" alt="radio"/> </td><td>Form</td></tr>
-		<tr><td>richText </td><td> provides a rich text area together with formatting toolbar </td><td> <img src="../assets/images/views/image115.png" alt="richText"/></td><td>Form</td></tr>
-		<tr><td>slider </td><td> Numeric slider. <br/><br/> Properties include: <br/> <ul><li> min </li><li> max </li><li> numberOfDiscreteValues </li><li> roundingPrecision </li></ul><br/> May be displayed vertically when <em>vertical</em> is set to <code>true</code>. </td><td> <img src="../assets/images/views/image116.png" alt="slider"/></td><td>Form</td></tr>
-		<tr><td>spacer </td><td> a widget provided to fill a column when no other widget is required <br/><br/> Items within rows always fill from the leftmost available column. The spacer widget is provided to allow items to fill from other than the leftmost column.</td><td> The spacer widget displays nothing.</td><td>All</td></tr>
-		<tr><td>spinner </td><td> numeric spinner allowing users to either type or select a value using the arrows <br/><br/>Properties include:<ul><li>min</li><li>max</li><li>step - the amount to increment/decrement for each arrow button press</li></ul> </td><td> <img src="../assets/images/views/image117.png" alt="spinner"/></td><td>Form</td></tr>
-		<tr><td>  staticImage </td><td> displays a static image </td><td>  <img src="../assets/images/views/image118.png" alt="staticImage"/></td><td>All</td></tr>
-		<tr><td>staticLink </td><td> hyperlink to a static URL<br/><br/>Properties:<ul><li>ref - the URL</li><li>value - the value displayed in the link, this defaults to the URL if not supplied.</li><li>newWindow - whether the target will be displayed in a new window</li></ul></td><td>  Not yet implemented.</td><td>Form</td></tr>
-		<tr><td>  textArea </td><td> basic data entry field for long text<br/><br/>textArea provides a <em>wrap</em> property to control whether the contained text is word wrapped. </td><td><img src="../assets/images/views/image119.png" alt="textArea"/></td><td>Form</td></tr>
-		<tr><td>  textField </td><td> provides basic data entry for text attributes <br/><br/> <code>textField</code> responds to the type of the bound attribute, and will display converter hint if the value is null.<br/><br/>For <code>date</code> and <code>dateTime</code> types, a calendar selector is displayed.</td><td> <img src="../assets/images/views/image120.png" alt="textField calendar"/> <br/> This example is a <code>textField</code> widget bound to a text type attribute. <br/> <img src="../assets/images/views/image121.png" alt="textField"/> <br/> This example is a <code>textField</code> widget bound to a time attribute using the <code>HH_MM</code> converter. <br/> <img src="../assets/images/views/image122.png" alt="textField time"/> <br/> This example is a <code>textField</code> widget bound to a <code>date</code> or <code>dateTime</code> attribute. The calendar tool on the right will either include time or not depending on which of these types the attribute is.</td><td>Form</td></tr>	
-		<tr><td>treeGrid</td><td>display and navigate hierarchical structures</td><td><img src="../assets/images/views/treeGrid.png" alt="treeGrid"/></td><td>Non-form</td></tr>
-		</tbody>
+		<tr>
+			<td> blurb</td>
+			<td>Displays the contained markup inside a <code>div</code> with binding substitutions<br/>Unlike other widgets, the blurb is not required to be contained within a <code>form</code> container</td>
+			<td><img src="../assets/images/views/blurb-binding-substitution.png" alt="blurb"/></td>
+			<td>All</td>
+		</tr>
+		<tr>
+			<td>button</td>
+			<td>Can be placed within the view when the <em>inActionPanel</em> flag for an Action is set to <code>false</code><br/><br/>If the Action is declared to be in the Action Panel, then no button widget is required to be declared.</td>
+			<td><img src="../assets/images/views/image99.png" alt="button"/></td>
+			<td>All</td>
+		</tr>
+		<tr>
+			<td>checkBox</td>
+			<td>Tri-state check box (null/true/false)  - for a two-state checkBox set the property `triState="false"`</td>
+			<td><img src="../assets/images/views/image100.png" alt="checkBox"/></td>
+			<td>Form</td>
+		</tr>
+		<tr>
+			<td>checkMembership </td><td>Providing for checkbox multiselection</td><td></td><td>Non-form</td></tr>
+		<tr>
+			<td>colourPicker</td>
+			<td>Displays a text box containing the colour code value together with a sample square of the colour<br/><br/>Clicking on the sample square activates a colour selector popup.</td>
+			<td><img src="../assets/images/views/image101.png" alt="colourPicker"/> In this example, the colour button at the RHS will open a colour selector as shown below:<br/> <img src="../assets/images/views/image102.png" alt="colourPicker"/></td>
+			<td>Form</td>
+		</tr>
+		<tr>
+			<td>combo</td>
+			<td>Drop-down selector for enumerations or where a domain type is specified for the document attribute</td>
+			<td><img src="../assets/images/views/image103.png" alt="combo"/></td>
+			<td>Form</td>
+		</tr>
+		<tr>
+			<td>comparison</td>
+			<td>Displays the differences between two beans instances and the ability for the users to apply differences between the instances (for an example, see the <em>Audits</em> function in the Skyve admin module)</td>
+			<td><img src="../assets/images/views/comparison.png" alt="comparison"/></td>
+			<td>Non-form</td>
+		</tr>
+		<tr>
+			<td>component</td>
+			<td>A component declares the inclusion of other view declarations, or sections of view declarations, allowing re-use of view declaration</td>
+			<td></td>	
+			<td>Non-form</td>
+		</tr>
+		<tr>
+			<td>contentImage</td>
+			<td>Displays the loaded image along with an upload action</td>
+			<td><img src="../assets/images/views/image104.png" alt="contentImage"/></td>
+			<td>Form</td>
+		</tr>
+		<tr>
+			<td>contentLink</td>
+			<td>Displays a hyperlink to open the content in a new browers window together with an upload action</td>
+			<td><img src="../assets/images/views/image105.png" alt="contentLink"/></td>
+			<td>Form</td>
+		</tr>
+		<tr>
+			<td>dataGrid</td>
+			<td>Provides a grid/table for displaying tabular data a view, e.g. from a collection associated to the current document.</td>
+			<td></td>
+			<td>Non-form</td>
+		</tr>
+		<tr>
+			<td>dataRepeater</td>
+			<td>Same as <code>dataGrid</code>, but the borders and headings are not displayed. Useful when combing with <code>markup</code> attributes in the collection for specific display formatting.</td>
+			<td></td>
+			<td>Non-form</td>
+		</tr>
+		<tr>
+			<td>default</td>
+			<td>If used in a view, this will render whatever the default widget is.<br/><br/>Either the <em>defaultWidget</em> declared on the document attribute or the Skyve default control for the attribute type.</td>
+			<td></td>
+			<td>Form</td>
+		</tr>
+		<tr>
+			<td>dialogButton</td>
+			<td>Not yet implemented.</td>
+			<td></td>
+			<td>All</td>
+		</tr>		
+		<tr>
+			<td>geoLocator</td>
+			<td>Geolocator will render a Map button, when pressed, a Geolocation window will appear with a pointer to the address or position bound to the Geolocator widget. <br/> <br/>A new address or location can be selected within the Geolocator Map if the Geolocator is not disabled.<br/> <br/>The Geolocator Widget has multiple bindings which interact with the map:
+				<ul>
+					<li>addressBinding</li>
+					<li>cityBinding</li>
+					<li>stateBinding</li>
+					<li>postcodeBinding</li>
+					<li>countryBinding</li>
+					<li>latitudeBinding</li>
+					<li>longitudeBinding</li>
+				</ul>
+			</td>
+			<td>When the Map button is clicked, the geolocator (shown) will be displayed in a modal window. <img src="../assets/images/views/image107.png" alt="geoLocator"/></td>
+			<td>All</td>
+		</tr>
+		<tr>
+			<td>geometry</td>
+			<td>Displays a Well Known Text (WKT) representation of the geometry, with a map-based selection tool</td>
+			<td></td>
+			<td>Form</td>
+		</tr>
+		<tr>
+			<td>html</td>
+			<td>Displays HTML content together with an Edit button (only available for SmartClient renderer) <br/><br/> When the edit button is clicked, a popup HTML editor window is displayed allowing users to create rich HTML. </td>
+			<td><img src="../assets/images/views/imageHTML_SC.png" alt="html"/></td>
+			<td>Form</td>
+		</tr>
+		<tr>
+			<td>inject</td>
+			<td>Allows the inclusion of javascript snippets within the view</td>
+			<td><img src="../assets/images/views/inject.png" alt="inject"/></td>
+			<td>Non-form</td>
+		</tr>
+		<tr>
+			<td>label</td>
+			<td>Simple text.</td>
+			<td><img src="../assets/images/views/image109.png" alt="label"/></td>
+			<td>All</td>
+		</tr>
+		<tr>
+			<td>link</td>
+			<td>Provides a <code>link</code> style approach to Skyve platform features (partially implemented)<br/>options include:
+				<ul>
+					<li>actionReference - perform an action</li>
+					<li>contentReference - access a content item</li>
+					<li>defaultListViewReference - open a default list view</li>
+					<li>editViewReference - open an edit view for a binding</li>
+					<li>externalReference - a link to an external resource</li>
+					<li>implicitActionReference - perform a Skyve implicit action</li>
+					<li>queryListViewReference - open a list view based on a query</li>
+					<li>reportReference - perform a report action (view a report)</li>
+					<li>resourceReference - view a Skyve resource</li>
+				</ul>
+			</td>
+			<td><img src="../assets/images/views/link.png" alt="link"/></td>
+			<td>All</td>
+		</tr>
+		<tr>
+			<td>listGrid</td>
+			<td>List grid component included in a view - the listGrid provides the same functionality as menu lists within the context of a custom view for the management of unrelated or informally-related bean instances</td>
+			<td><img src="../assets/images/views/listGrid.png" alt="listGrid"/></td>
+			<td>Non-form</td>
+		</tr>
+		<tr>
+			<td>listMembership</td>
+			<td>List-based multi-selection tool</td>
+			<td><img src="../assets/images/views/listMembership.png" alt="listMembership"/></td>
+			<td>Non-form</td>
+		</tr>
+		<tr>
+			<td>listRepeater</td>
+			<td>Same as <code>listGrid</code>, but the borders and headings are not displayed. Useful when combing with <code>markup</code> attributes in the list for specific display formatting.</td>
+			<td><img src="../assets/images/views/listRepeater.png" alt="listRepeater"/></td>
+			<td>Non-form</td>
+		</tr>
+		<tr>
+			<td>lookup</td>
+			<td>Deprecated.</td>
+			<td></td>
+			<td>Form</td>
+		</tr>
+		<tr>
+			<td>lookupDescription</td>
+			<td><code>lookupDescription</code> is used to display an association to another document, and combines a combo with a pick button. <br/><br/> Users may select a value from the combo, or type values into the text box which will locate a matching value in the combo drop-down list if found. <br/><br/> When the pick button is pressed, a Pick window containing a listGrid is displayed, showing eligible values as declared in the document association. <br/><br/> Whereas normally double-clicking in a grid will zoom into the row, double-clicking in a Pick grid will select that value, close the popup and set the value of the <code>lookupDescription</code> combo next to the Pick button. <br/><br/> The down-arrow button reveals options to Edit (i.e. Zoom), New or Clear the reference. <br/> More features of the <code>lookupDescription</code> are explained in the next section.</td>
+			<td><img src="../assets/images/views/image110.png" alt="lookupDescription"/> <br/>
+			In this example the <code>bizKey</code> of the currently associated document instance is displayed in the control. To use another attribute change the lookupDescription's <code>descriptionBinding</code> attribute. <br/> If the Pick button is clicked, a listGrid of eligible document instances is shown in a modal window. <br/> <img src="../assets/images/views/image111.png" alt="pick"/> <br/> The down-arrow selector button will display options for Edit (edit the referenced document on-the-fly), New (create a new potential reference on-the-fly) and Clear (clear the reference). <br/> <img src="../assets/images/views/image112.png" alt="lookupDescription actions"/></td>
+			<td>Form</td>
+		</tr>
+		<tr>
+			<td>map</td>
+			<td>Displays a map centred on the <code>geometry</code> attribute specified in the map's binding. Map controls allow the geometry to be set/updated, which may be a point or a polygon.</td>
+			<td></td>
+			<td>Non-form</td>
+		</tr>
+		<tr>
+			<td>password</td>
+			<td>A textField which obfuscates the entered value</td>
+			<td><img src="../assets/images/views/image113.png" alt="password"/></td>
+			<td>Form</td>
+		</tr>
+		<tr>
+			<td>progressBar</td>
+			<td>Not yet implemented.</td>
+			<td></td>
+			<td>Non-form</td>
+		</tr>
+		<tr>
+			<td>radio</td>
+			<td> radio selector for enumerations or for document attributes where a domain type is specified <br/> <br/> Radios may be laid out vertically or horizontally, using the property <em>vertical</em>. <br/> Vertical arrangement is the default arrangement for radio selectors when no arrangement is specified. <br/><br/>Radios can also be used for boolean attributes. To do this, declare a constant domain for the attribute, and override the `getConstantDomainValues` Bizlet method to return two domain values
+				<ul>
+					<li><code>new DomainValue(Boolean.TRUE.toString(), "Yes");</code></li>
+					<li><code>new DomainValue(Boolean.FALSE.toString(), "No");</code></li>
+				</ul>
+			</td>
+			<td><img src="../assets/images/views/image114.png" alt="radio"/></td>
+			<td>Form</td>
+		</tr>
+		<tr>
+			<td>richText </td>
+			<td>Provides a rich text area together with formatting toolbar.</td>
+			<td><img src="../assets/images/views/image115.png" alt="richText"/></td>
+			<td>Form</td>
+		</tr>
+		<tr>
+			<td>sidebar</td>
+			<td>Displays floating content in a separate area of the view which is always present when you scroll.<br/><br/>Properties include:
+				<ul>
+					<li>floatingPixelWidthBreakpoint</li>
+					<li>floatingPixelWidth</li>
+					<li>percentageWidth</li>
+				</ul>
+			</td>
+			<td><img src="../assets/images/views/sidebar-visible.png" alt="sidebar"/></td>
+			<td>Non-form</td>
+		</tr>
+		<tr>
+			<td>slider</td>
+			<td>Numeric slider.<br/><br/>Properties include:
+				<ul>
+					<li>min</li>
+					<li>max</li>
+					<li>numberOfDiscreteValues</li>
+					<li>roundingPrecision</li>
+				</ul>
+				<br/> May be displayed vertically when <em>vertical</em> is set to <code>true</code>.
+			</td>
+			<td><img src="../assets/images/views/image116.png" alt="slider"/></td>
+			<td>Form</td>
+		</tr>
+		<tr>
+			<td>spacer</td>
+			<td>A widget provided to fill a column when no other widget is required.<br/><br/>Items within rows always fill from the leftmost available column. The spacer widget is provided to allow items to fill from other than the leftmost column.</td>
+			<td>The spacer widget displays nothing.</td>
+			<td>All</td>
+		</tr>
+		<tr>
+			<td>spinner</td>
+			<td>Numeric spinner allowing users to either type or select a value using the arrows <br/><br/>Properties include:
+				<ul>
+					<li>min</li>
+					<li>max</li>
+					<li>step - the amount to increment/decrement for each arrow button press</li>
+				</ul>
+			</td>
+			<td><img src="../assets/images/views/image117.png" alt="spinner"/></td>
+			<td>Form</td>
+		</tr>
+		<tr>
+			<td>staticImage</td>
+			<td>Displays a static image.</td>
+			<td><img src="../assets/images/views/image118.png" alt="staticImage"/></td>
+			<td>All</td>
+		</tr>
+		<tr>
+			<td>staticLink</td>
+			<td>Hyperlink to a static URL.<br/><br/>Properties:
+				<ul>
+					<li>ref - the URL</li>
+					<li>value - the value displayed in the link, this defaults to the URL if not supplied.</li>
+					<li>newWindow - whether the target will be displayed in a new window</li>
+				</ul>
+			</td>
+			<td>Not yet implemented.</td>
+			<td>Form</td>
+		</tr>
+		<tr>
+			<td>textArea</td>
+			<td>Basic data entry field for long text,<br/><br/>textArea provides a <em>wrap</em> property to control whether the contained text is word wrapped.</td>
+			<td><img src="../assets/images/views/image119.png" alt="textArea"/></td>
+			<td>Form</td>
+		</tr>
+		<tr>
+			<td>textField</td>
+			<td>Provides basic data entry for text attributes <br/><br/> <code>textField</code> responds to the type of the bound attribute, and will display converter hint if the value is null.<br/><br/>For <code>date</code> and <code>dateTime</code> types, a calendar selector is displayed.<br/><br/>Use the _complete_ for auto-complete and type-ahead on previous values or suggestions as the user types (see example below)</td>
+			<td><img src="../assets/images/views/image120.png" alt="textField calendar"/> <br/> This example is a <code>textField</code> widget bound to a text type attribute. <br/> <img src="../assets/images/views/image121.png" alt="textField"/> <br/> This example is a <code>textField</code> widget bound to a time attribute using the <code>HH_MM</code> converter. <br/> <img src="../assets/images/views/image122.png" alt="textField time"/> <br/> This example is a <code>textField</code> widget bound to a <code>date</code> or <code>dateTime</code> attribute. The calendar tool on the right will either include time or not depending on which of these types the attribute is.</td>
+			<td>Form</td>
+		</tr>
+		<tr>
+			<td>treeGrid</td>
+			<td>Display and navigate hierarchical structures</td>
+			<td><img src="../assets/images/views/treeGrid.png" alt="treeGrid"/></td>
+			<td>Non-form</td>
+		</tr>
+	</tbody>
 </table>
+
+### Type-ahead and Auto-completion Using _complete_
+
+The _textField_ widget can be extended to provide suggestions to the user as they type via the _complete_ setting.
+
+![Using complete](../assets/images/views/complete1.png "Example text entry using complete")
+
+Here the textField widget provides the user with suggested completions based on the _value_ they have typed.
+
+To achieve this, declare the _complete_ option in on the textField, and then override the _complete_ method in the bizlet.
+
+```xml
+<textField binding="suburb" complete="suggest"/>
+```
+
+In this example, the method uses the convenience method _ModulesUtil.getCompleteSuggestions()_ to generate a list of suggestions, however the developer can generate the list of suggestions using bespoke code for their situation.
+
+```java
+@Override
+public List<String> complete(String attributeName, String value, ControlPanelExtension bean) throws Exception {
+	
+	if(ControlPanel.testTagNamePropertyName.equals(attributeName)) {
+		return ModulesUtil.getCompleteSuggestions(Tag.MODULE_NAME, Tag.DOCUMENT_NAME, Tag.namePropertyName,value);
+	}
+	return super.complete(attributeName, value, bean);
+}
+```
+
+The complete() method parameters are:
+1. attributeName - the binding name of the textField widget
+2. value - the value entered by the user
+3. bean - the bean which is being edited by the user
+
+There are three options for _complete_ :
+1. previous - automatically provide a list of distinct previous values for the same binding (e.g. "suburb") but still allow the user to enter new values not previously used. Previous is a special no-code case (the bizlet "complete()" method is not required to be overridden for this option).
+2. suggest - provide a list of suggested values from some other list provided by the developer but still allow the user to enter new values not in the suggested list.
+3. constrain - provide a list of suggested values from some other list provided by the developer and constrain data entry only to those values.
 
 ### Change event action (client-side events)
 
@@ -743,12 +1090,31 @@ Also note that lists will be refreshed if the list is accessible by the user fro
 
 #### Update property
 
-The update property (PrimeFaces renderer only) implements the PrimeFaces update property - which allows developers to 
-limit rerendering to a specified container.
+The update property (PrimeFaces renderer only) implements the PrimeFaces update property - which allows developers to limit rerendering to a specified container. This prevents the page from being completely rerendered when a change occurs in a widget, leading to a better user experience and better performance on larger pages.
+
+Before using the c:property, ensure that your view element definition includes the XML common namespace (`xmlns:c="http://www.skyve.org/xml/common"`) as shown below:
+
+```xml
+<view name="edit" title="<view title>" 
+	xsi:schemaLocation="http://www.skyve.org/xml/view ../../../../schemas/view.xsd" 
+	xmlns="http://www.skyve.org/xml/view" 
+	xmlns:c="http://www.skyve.org/xml/common"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+```
 
 ![Update property for change handlers](../assets/images/views/update-property.png "Update property for change handlers")
 
 In the above example, only the container with a `widgetId` of _citizenship_ will be rerendered when the value of the _combo_ is changed.
+
+#### Scrolling
+
+For the PrimeFaces renderer only - all template.xhtml pages have `head` and `body` ids. This allows controlled scrolling for PrimeFaces views as well as to any widgetId added by the developer. This can be useful for large views where the developer wants to focus the user attention on a particular area.
+
+```java
+PrimeFaces.current().scrollTo("head");
+PrimeFaces.current().scrollTo("body");
+PrimeFaces.current().scrollTo("widgetId");
+```
 
 ### The lookupDescription widget in detail
 
@@ -1001,8 +1367,7 @@ boundColumns are the fields from your chosen document that you wish to show:
 
 ### listGrid
 
-Views may also contain an embedded *listGrid* which is identical to the
-main list feature. 
+Views may also contain an embedded *listGrid* which is identical to the main list feature. 
 
 A *listGrid* can be used for showing collections of
 document instances and can be used to show loosely defined relationships, for example, if the Contact view was required
@@ -1072,7 +1437,7 @@ Filter parameters can be applied to the *listGrid* widget which will
 apply additional filtering (over and above any filtering defined in the
 applicable query).
 
-Filter parameters can be *value* (for a static value) or *binding*
+Filter parameters can be by `value` (for a static value) or by a `valueBinding`
 (filtering the list of eligible references by the value of a binding
 from the document being viewed).
 
@@ -1080,18 +1445,22 @@ If *filterParameters* have been defined and the user creates a new
 document from the grid (using the grid *Add* action), the created
 document will have the *filterParameter* values set by default.
 
-![listGrid with filterParameters](../assets/images/views/image131.png "listGrid with filterParameters")
+```xml
+<vbox border="true" borderTitle="Communications using this template">
+	<listGrid query="qCommunications" continueConversation="true">
+		<filterParameter operator="equal" filterBinding="template" valueBinding="bizId" />
+	</listGrid>
+</vbox>
+```
 
-In the example shown above, the *filterParameter* name 'supplier'
-corresponds to the binding of the 'qProducts' query column being
-filtered. The *filterParameter* binding 'bizId' refers to the binding in
+In the example shown above, the listGrid in the `CommunicationTemplate` edit view refers to a query in 
+the admin module, `qCommunications`, which when unfiltered returns all `Communication` records. By applying 
+a filterParameter on the `template` binding, only Communications using the current template will be displayed.
+
+The *filterParameter* `valueBinding` 'bizId' refers to the binding in
 the current document view which provides the value for the filter (in
 this case *bizId*). Note that the binding does not need to be included
 in the view declaration to be able to be used for a *filterParameter*.
-
-In the example above, the effect of filtering by binding bizId is that
-the listGrid will only display products from the *qProducts* query where
-the supplier column matches the supplier displayed in the view.
 
 #### Event handlers for listGrid
 
@@ -1106,19 +1475,92 @@ You can add in the listGrid into your edit view as such (the columns shown
 in the listGrid are decided by the fields shown in the query):
 
 ```xml 
-
 <listGrid continueConversation="true" query="qContacts"/>	
-
 ```
 
-The listGrid query binding is the query you wish to display, if you wish to 
-filter the listGrid, an association to the required field can be used. 
-The columns are changed by editing the query directly:
+The listGrid `query` attribute is the query you wish to display. The columns 
+displayed in the listGrid are decided by the fields specified in the query. If 
+you wish to change the columns displayed, update the query in the `module.xml`.
 
-![ListGrid Example](../assets/images/views/ListGrid.PNG "DataGrid Example")
+![ListGrid Example](../assets/images/views/listGrid.png "ListGrid Example")
 
+### listMembership
 
-### newParameter
+The `listMembership` widget is used when a user should be able to quickly multi-select many options from a collection of available options and assign them to a record. It provides intuitive _add one_, _add all_, _remove one_, and _remove all_ controls for managing memberships in a list.
+
+This widget is typically used for **aggregated** many-to-many style relationships, such as assigning permission groups to users. This would not be used for owned collections (child or composition).
+
+See the `groups` collection in the `User` document in the `admin` module for a working example.
+
+#### How it works
+
+The widget binds to a collection in the document, representing the **selected** records (right-hand side).
+
+The list of **available** records (left-hand side) is automatically populated from all available instances of the target document, using the default query defined for that document. If no default query is specified, all persisted instances of the document are used.
+
+The left-hand side is therefore calculated as:
+
+> All candidates **minus** the currently selected members
+
+You do **not** need to specify a domain to use `listMembership`. However, if you want to **refine** the list of candidates shown on the left-hand side (e.g. only active users), you can set `domain="variant"` or `domain="dynamic"` on the collection, and then override the appropriate method (`getVariantDomainValues()` or `getDynamicDomainValues()`) in the document’s Bizlet.
+
+Each side of the `listMembership` is a single-column list that shows the bizKey of each record.
+
+#### Example Usage
+
+In this example, we create a `listMembership` widget to manage a collection of users who will receive email reminders.
+
+**document.xml**
+
+Define a persistent collection which will store the selected members:
+
+```xml
+<collection name="subscribers" type="aggregation">
+   <displayName>Reminder Subscribers</displayName>
+   <description>Users in this group will receive reminder email notifications.</description>
+   <domain>dynamic</domain> <!-- optional; required only if refining the available list -->
+   <documentName>UserProxy</documentName>
+   <minCardinality>0</minCardinality>
+</collection>
+```
+
+**edit.xml**
+
+Add the `listMembership` widget to the view and specify the binding of the collection. The `candidatesHeading` and `membersHeading` attributes are optional, but they help to clarify the purpose of each list, where the left-hand side is the list of available users and the right-hand side is the list of selected subscribers.
+
+```xml
+<listMembership binding="subscribers" candidatesHeading="All Active Users" membersHeading="Subscribers" />
+```
+
+In this example:
+
+- `binding` specifies the attribute (collection) to bind to.
+- `candidatesHeading`  is the label shown above the list of available records.
+- `membersHeading` is the label shown above the list of selected members.
+
+**Bizlet** (dynamic domain population)
+
+Override `getDynamicDomainValues()` in your Bizlet to provide the list of available records (this should include the selected values too):
+
+```java
+@Override
+public List<DomainValue> getDynamicDomainValues(String attributeName, DocumentName bean) throws Exception {
+	if (DocumentName.subscribersPropertyName.equals(attributeName)) {
+		// only return active users to be available for selection
+		DocumentQuery q = CORE.getPersistence().newDocumentQuery(User.MODULE_NAME, User.DOCUMENT_NAME);
+		q.getFilter().addNotEquals(User.inactivePropertyName, Boolean.TRUE);
+		q.addBoundOrdering(Bean.BIZ_KEY);
+		List<UserExtension> activeUsers = q.beanResults();
+
+		return activeUsers;
+	}
+	return super.getDynamicDomainValues(attributeName, bean);
+}
+```
+
+> **Important**: This list must include the currently selected records as well, otherwise Skyve will not be able to resolve the display values of the selected records in the collection in the UI when the bean is rehydrated. Any records in the collection will still be saved, but will display as a list of bizIds instead of their bizKey.
+
+## newParameter
 
 The *newParameter* section enables the context of one view to be passed
 to another view, when new documents are being created.
@@ -1147,7 +1589,7 @@ target document.
 </newParameters>
 ```
 
-### Action declaration
+## Action declaration
 
 The action section of the view declares which actions will be available
 to the user and under what conditions.
@@ -1158,8 +1600,8 @@ Typically, scaffolded views contain the _<defaults/>_ tag - this represents the 
 Skyve will automatically hide actions that are not appropriate for the user or situation (for example, if the *new* action is declared, 
 but a user's privileges do not include the _create_ privilege for the relevant document).
 
-Note that action buttons can be located either in the *ActionPanel* or using the _<button/>_ widget within a view _form_, however the action itself must be declared
-in the _<actions/>_ section of the view.
+Note that action buttons can be located either in the *ActionPanel* or using the `<button>` widget within a view _form_, however the action itself must be declared
+in the `<actions>` section of the view.
 
 ***Tip:*** You must declare all actions in the action section even if
 they will not appear in the ActionPanel.
@@ -1260,13 +1702,13 @@ The component has the following attributes:
 
 Attribute | Description
 ----------|------------
-binding | the binding name of the association attribute which corresponds to the driving document of the component - see the association example below for more details. 
-document | the document package where the referenced component declaration resides - it is not necessary to specify the *document* attribute here if the component resides within the same document
+binding   | the binding name of the association attribute which corresponds to the driving document of the component - see the association example below for more details. 
+document  | the document package where the referenced component declaration resides - it is not necessary to specify the *document* attribute here if the component resides within the same document
 invisible | whether the component is invisible
-module | the module package where the referenced component declaration resides - it is not necessary to specify the *module* attribute here if the component resides within the same module
-name | the name of the component declaration being referenced
-visible | whether the component is visible
-widgetId | a specific `id` for the widget so that the widget can be directly referenced (e.g. `xhtml`)
+module    | the module package where the referenced component declaration resides - it is not necessary to specify the *module* attribute here if the component resides within the same module
+name      | the name of the component declaration being referenced
+visible   | whether the component is visible
+widgetId  | a specific `id` for the widget so that the widget can be directly referenced (e.g. `xhtml`)
 
 ### Using a component for an associated document
 
@@ -1375,11 +1817,11 @@ This situation can be handled in a variety of ways, however Skyve also supports 
 
 ![Create view](./../assets/images/views/create-view.png "Create view")
 
-In the above example, the User document has a `create.xml` view declared as well as a general `edit.xml`.
+An example of a create view can be found in the Skyve `admin` module for the `User` document. As displayed above, the `User` document has a `create.xml` view declared as well as a general `edit.xml`. In this case, a create view is useful because creating a new User involves several steps not normally required for simple data entry. Compare this with the `admin.Contact` document - where the basic edit view is sufficient for creating new Contacts and a `create` view is not required.
 
-Whether the `create.xml` view is served depends on the existence of a condition named `created` being declared in the corresponding `document.xml`.
+Whether the `create.xml` view is served by Skyve depends on the existence of a condition named `created` being declared in the corresponding `document.xml`.
 
-For the above example, the create view will not be served unless the *User* document includes the created condition similar to the following:
+For the above example, the create view will not be served unless the `User` document includes the created condition similar to the following:
 
 ```xml
 <condition name="created">
@@ -1392,71 +1834,74 @@ For the above example, the create view will not be served unless the *User* docu
 
 In the simple case, the condition uses the `isPersisted()` method - as a bean is considered to have been *created* once it has been *persisted* , however the specific logic can be determined by the developer as required.
 
-
 ## Skyve Renderer Comparison
 
-Skyve features the ability to dynamically change the rendering engine based on criteria specified as part of its routing. By default, it switches renderer based on the user agent of the browser. If it detects the user is using a desktop browser, the SmartClient renderer will be used, otherwise the responsive PrimeFaces renderer will be used.
+Skyve features the ability to dynamically change the rendering engine based on criteria specified as part of its routing. By default, it switches renderer based on the user agent of the browser. If it detects the user is using a desktop browser, the desktop renderer (SmartClient) will be used, otherwise the responsive renderer (PrimeFaces) will be used.
 
 The table below shows the available renderers in Skyve and their level of completion.
 
-*Note: React and React Native are in early stages of development and not available for use in applications yet. This table is not a complete list.*
+*Note: Flutter is the planned renderer for native mobile applications but is still in early stages of development and not available for use in applications yet. JQuery Mobile is the legacy renderer for mobile, PrimeFaces responsive renderer is now used instead. This table is not a complete list.*
 
 **High Level Features**
 
-Feature | SmartClient | PrimeFaces | JQuery Mobile | React | React Native | Description
---------| ----------- | ---------- | ------------- | ----- | ------------ | -----------
-Session management      | Y | Y | Y | Y |   | Ability to create, associate, expire and propagate a user session and prompt for login
-Conversation management | Y | Y | Y | Y |   | Ability to start, associate, propagate and reclaim conversation states in Skyve views
-Zooming management      | Y | Y | Y | Y |   | Ability to manage _n_ level zooming across the domain's aggregations, within and outside of view conversations
-Security management     | Y | Y | Y | Y | Y | Guarding against XSS, injection attacks and applying best practice network and application security through sanitisation, escaping etc
-Permission management   | Y | P |   |   |   | Ability for the view to react automatically to the user permissions by showing, hiding and altering different view mechanisms
-Scope management        | Y | Y |   |   |   | Ensuring that view elements issue correct data retrievals based on the current user scope settings
-Request management      | Y | Y |   |   |   | Ensure requests are issued asynchronously and synchronously as required, orchestrating multiple requests, and managing long running and unresponsive requests
-UI Dirty management     | Y |   |   |   |   | Ability to detect data changes in the UI widgets through all request/responses in a conversation and warn when a user is about to perform a gesture that will discard their unsaved changes
-Routing Management      | Y | Y |   |   |   | Ability to inject front end markup/logic into existing Skyve views through 'native' mechanisms and remain integrated with the Skyve view plus the ability to hijack a view completely through the Skyve routing mechanism and generate pieces of the defined Skyve views as an assembly strategy if appropriate.
-View Layout             | Y | Y | Y | Y |   | 
-Data Grid               | Y | Y | Y | Y |   | 
-File Upload             | Y | Y |   |   |   | 
-Content Upload          | Y | Y |   |   |   | 
-File Download           | Y | Y |   |   |   | 
+Feature | SmartClient | PrimeFaces | Flutter | Description
+--------| ----------- | ---------- | ------- | -----------
+Session management      | Y | Y |  | Ability to create, associate, expire and propagate a user session and prompt for login
+Conversation management | Y | Y |  | Ability to start, associate, propagate and reclaim conversation states in Skyve views
+Zooming management      | Y | Y |  | Ability to manage _n_ level zooming across the domain's aggregations, within and outside of view conversations
+Security management     | Y | Y | Y | Guarding against XSS, injection attacks and applying best practice network and application security through sanitisation, escaping etc
+Permission management   | Y | P |  | Ability for the view to react automatically to the user permissions by showing, hiding and altering different view mechanisms
+Scope management        | Y | Y |  | Ensuring that view elements issue correct data retrievals based on the current user scope settings
+Request management      | Y | Y |  | Ensure requests are issued asynchronously and synchronously as required, orchestrating multiple requests, and managing long running and unresponsive requests
+UI Dirty management     | Y |   |  | Ability to detect data changes in the UI widgets through all request/responses in a conversation and warn when a user is about to perform a gesture that will discard their unsaved changes
+Routing Management      | Y | Y |  | Ability to inject front end markup/logic into existing Skyve views through 'native' mechanisms and remain integrated with the Skyve view plus the ability to hijack a view completely through the Skyve routing mechanism and generate pieces of the defined Skyve views as an assembly strategy if appropriate.
+View Layout             | Y | Y |   | 
+Data Grid               | Y | Y | Y | 
+Sidebar				    | Y | Y |   | Allows floating content to be defined in the view which is always present as you scroll. Pixel breakpoints can be specified at which it automatically collapses on smaller screen widths. The width of the sidebar when open can also be defined.
+File Upload             | Y | Y |   | 
+Content Upload          | Y | Y |   | 
+File Download           | Y | Y |   | 
+Image Markup			| Y | Y |   | Provides the ability to draw on top of an uploaded or existing content image.
 
 **View Controls**
 
-Feature | SmartClient | PrimeFaces | JQuery Mobile | React | React Native
---------| ----------- | --- | ------------- | ----- | ------------
-label            | Y | Y | Y |   | 
-blurb             | Y | Y |   |   | 
-button            | Y | Y | Y |   | 
-checkBox          | Y | Y | Y |   | 
-colourPicker     | Y |   |   |   | 
-Content picker    | Y | Y | Y |   | 
-Date picker       | Y | Y | Y |   | 
-Date/time picker  | Y | Y | Y |   | 
-Drop-down list    | Y | Y | Y |   | 
-geolocator        | Y |   |   |   | 
-geometry   | Y |   |   |   | 
-inject            | Y |   |   |   | 
-spinner   | Y | Y | Y |   | 
-listMembership   | Y | Y |   |   | 
-password          | Y | Y |   |   | 
-richText  | Y |   |   |   | 
-radio             | Y | Y |   |   | 
-spacer            | Y | Y |   |   | 
-textArea         | Y | Y | Y |   | 
-textField        | Y | Y | Y |   | 
-Type-ahead        | Y | Y | Y |   | 
+Feature | SmartClient | PrimeFaces | Flutter
+--------| ----------- | ---------- | -------
+label             | Y | Y | Y
+blurb             | Y | Y |  
+button            | Y | Y |  
+checkBox          | Y | Y |  
+colourPicker      | Y |   |  
+Content picker    | Y | Y |  
+Date picker       | Y | Y |  
+Date/time picker  | Y | Y |  
+Drop-down list    | Y | Y |  
+geolocator        | Y | Y |  
+geometry          | Y | Y |  
+inject            | Y |   |  
+spinner           | Y | Y |  
+listMembership    | Y | Y |  
+password          | Y | Y |  
+richText          | Y | Y |  
+radio             | Y | Y |  
+slider            | Y | Y |  
+spacer            | Y | Y |  
+textArea          | Y | Y |  
+textField         | Y | Y |  
+type-ahead        | Y | Y |  
 
 **List Grids**
 
-Feature | SmartClient | PrimeFaces | JQuery Mobile | React | React Native
---------| ----------- | --- | ------------- | ----- | ------------
-List Grid          | Y | Y | Y | Y | 
-Image Thumbnails   | Y | Y |   |   | 
-File Thumbnails    | Y | Y |   |   | 
-Column filtering   | Y | Y |   |   | 
-Column sorting     | Y | Y |   |   | 
-Advanced filtering | Y |   |   |   | 
-Export             | Y |   |   |   | 
+Feature | SmartClient | PrimeFaces | Flutter 
+--------| ----------- | ---------- | ------- 
+List Grid          | Y | Y | Y 
+Image Thumbnails   | Y | Y | 
+File Thumbnails    | Y | Y | 
+Column filtering   | Y | Y | Y
+Column sorting     | Y | Y | Y
+Advanced filtering | Y |   | 
+Export             | Y |   | 
+Open in new tab    | Y | Y | 
 
 **Desktop only features**
 
@@ -1471,9 +1916,9 @@ The following features are only available for the SmartClient renderer, as they 
   * Snapshots
   * Flags
   * Exporting
-
+  
 **[⬆ back to top](#views)**
 
 ---
-**Next [Routing and rendering](./../_pages/routing.md)**  
+**Next [Queries](./../_pages/queries.md)**  
 **Previous [Bizlets](./../_pages/bizlets.md)**

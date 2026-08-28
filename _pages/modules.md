@@ -8,6 +8,8 @@ sidebar:
   nav: docs
 ---
 
+## Modules
+
 Modules define self-contained application pieces and correspond to menus
 within the system accordion menu pane. The repository/apps folder
 contains all application metadata and code, organised as application
@@ -31,7 +33,7 @@ module and defines the following:
   ----------------- | ----------
   name              | The name used by the developer to define and distinguish the module.
   title             | The title of the module as presented in the user interface.<br>The module title will be the label shown on the accordion pane containing the module menu.
-  homeRef           | Whether the homeDocument (see below) will open in list or edit view.<br>This attribute is optional – if not included Skyve assumes a homeRef of *list* (i.e. a list view rather than a detail view).
+  homeRef           | Whether the homeDocument (see below) will open in list or edit view.<br>This attribute is optional - if not included Skyve assumes a homeRef of *list* (i.e. a list view rather than a detail view).
   homeDocument      | The document which will open by default when the module is accessed by the user.
   documents         | The list of documents.<br>Documents may be persistent or transient. Each persistent document maps to a database table. (Transient documents exist only in memory.)
   queries           | The queries referenced within the application metadata.<br>Each list view is based on a metadata query specified in the `module.xml` and any queries referenced within document metadata (e.g. for collections or references) must be declared here. Skyve will generate default queries for each document unless a specific metadata query is declared.
@@ -96,16 +98,15 @@ module folder.
 The `module.xml` file can include definitions of queries used in the
 application. Queries declared in the `module.xml` are called *metadata
 queries* to distinguish them from other queries which may exist as views
-on the database server or as insecure SQL strings within developer code.
+on the database server or as unsecured SQL strings within developer code.
 
-Each document can specify a *defaultQueryName* – which is the name of
+Each document can specify a *defaultQueryName* - which is the name of
 the metadata query to use by default wherever lists of document
 instances may be required (e.g. lists and lookups for document
 references).
 
-If a query name is not supplied Skyve will generate a default or
-*generic* query which will include all columns for all document
-attributes.
+If a query name is not supplied Skyve will generate a *default* query which 
+will include all columns for all document attributes.
 
 Queries defined in the `module.xml` are also available to developers in
 *Bizlet* code. Queries can also be declared as the source for document
@@ -113,14 +114,23 @@ attribute associations and collections. When used in this way, the query
 determines eligible references for membership in the association or
 collection.
 
-## Generic queries
+
+## Default Queries
 
 When Skyve generates a query (in the situation where a query is required
-but none has been specified), this *generic* query will contain all
+but none has been specified), this *default* query will contain all
 document attributes for the *driving document* and the *bizKey* value
 for all references. Columns will be in the order of document attributes
 (as specified in the *document.xml*) with ascending ordering applied to
 the first column. All columns will be non-editable inline in the list.
+
+The *default* query for a Document can be specified by setting the 
+`defualtQueryName` when specifying documents for your module (the default query 
+to use needs to be defined in the queries section for the module). For example:
+
+```xml
+<document ref="DocumentNumber" defaultQueryName="qDocumentNumbers"/>
+```
 
 ## Declaring queries
 
@@ -136,43 +146,7 @@ listGrid will zoom to the *driving document*.
 
 ![Query based list](../assets/images/modules/listTitle.png "Query based list")
 
-### Query column definition
-
-  Query column attributes | Description
-  ----------------------- | -----------
-  binding                 | The document value to be shown in the query column.<br>A compound binding can be used where the value to be shown is in a related document.
-  displayName             | An alias for the query column.<br>If no displayName is specified in the query, the list column title will be the displayName specified for the document attribute.
-  editable                | Whether the column is editable in the list view inline.<br>By default editable is set to false.
-  expression              | A valid OQL expression which defines the value to be shown in the list column.
-  filterable              | Whether a filter can be applied to this column in the list view.
-  filterExpression        | A literal value or one of a number of expressions.<br>Defined expressions include:<br><ul><li>{CONTACTID} - the id of the contact who is the current user<li>{CUSTOMER} – the name of the customer context in which the current user operates<li>{DATAGROUPID} – the id of the data group of the current user<li>{DATE} - current date<li>{DATETIME} - current date and time<li>{USERID} - bizId of the current user<li>{USER} – the userName of current user<li>{USERNAME} -  the name of the current user contact</ul>
-  filterOperator          | One of the following operators:<ul><li>equal, notEqual,<li>greater, less,<li>greaterEqual, lessEqual,<li>like, notLike,<li>notNull, isNull,<li>nullOrEqual, nullOrNotEqual,<li>nullOrGreater, nullOrLess,<li>nullOrGreaterEqual, nullOrLessEqual,<li>nullOrLike, nullOrNotLike;</ul>
-  hidden                  | Whether the query column will be hidden by default in a list view.<br>Hidden columns are hidden by default, but can be un-hidden by the user unless the column has projected=false.
-  name                    | You can include calculated or derived values in a query however you must create a non-persistent field in the driving document to hold the value. The *name* is the name of the non-persistent document field which holds the calculated value.<br>Note that the name must correspond to a transient (i.e. non persistent) field in the document which describes other aspects of the expression result (such as type, length, display format etc.).
-  projected               | Whether the column will exist in the result set.<br>By default all query columns are projected unless this attribute is *false*.
-  sortable                | Whether the query can be sorted by this column in the list view.
-  sortOrder               | The sorting order (ascending or descending) to use by default when this query is displayed.<br>If the column is sortable, the user will be able to re-sort the list results.
-
-_Query column definitions_
-
-Driving documents can be the subject of many queries.
-
-### Content query columns
-
-Skyve also provides a `content` column type for content items (images and file attachments). The `content` column type has the following attributes:
-
- Content column attributes | Description
- --------------------------|-------------
- alignment                 | either left, right or centre
- display                   | either `thumbnail` or `link` - displays either a thumbnail of the image, or file type icon, or a download link for the content item
- displayName                | the column name for the column
- emptyThumbnailRelativeFile | the relative file to display if the content item produces an empty thumbnail
- hidden                     | whether the column is hidden by default
- pixelHeight                | the height of the thumbnail in pixels
- pixelWidth                 | the width of the thumbnail in pixels
- sortOrder                  | The sorting order (ascending or descending) to use by default when this query is displayed.
-
-![Thumbnail image in list](../assets/images/working-with-content/thumbnail-image-list.png "Thumbnail image in list")
+More details are provided in [Queries](./../pages/queries.md)
 
 ### Queries for reference attributes
 
@@ -226,7 +200,7 @@ document instance will only be accessible to the user who created it.
 
 Role privileges are applied to all select statements generated
 internally by Skyve. This means that privileges automatically apply to
-developer code (except for insecure SQL). The benefit of this is that
+developer code (except for unsecured SQL). The benefit of this is that
 developer code does not have to handle security issues and therefore the
 developer is not able to make inadvertent security holes.
 
@@ -239,7 +213,7 @@ method to provide pervasive row-level security, declaratively.
 
 Document scope criteria are applied to all select statements generated
 internally by Skyve. This means that document scoping applies
-automatically to developer code (except for insecure SQL).
+automatically to developer code (except for unsecured SQL).
 
 Documents may be scoped *Global* (G), *Customer* (C), *DataGroup* (D) or
 *User* (U).
@@ -518,8 +492,8 @@ however for specific details of privileges, view the admin module xml declaratio
 To assist in rapid development and prototyping, Skyve provides a `prototype` option for modules which changes a number of default Skyve behaviours. Developers should note that the `prototype` option is designed to provide indicative results that may not necessarily provide optimal performance.
 
 The two key differences `prototype` mode introduces are:
- - inclusion of association/reference columns in *generic* or *default* queries (i.e. where no query is specified, Skyve will include columns for associations, displaying the bizKey value for the associated bean)
- - inclusion of content items in *generic* or *default* queries as thumbnails
+ - inclusion of association/reference columns in *default* queries (i.e. where no `defaultQueryName` is specified, Skyve will include columns for associations, displaying the bizKey value for the associated bean)
+ - inclusion of content items in *default* queries as thumbnails
 
 To declare `prototype` mode, add `prototype="true"` to the module declaration as follows:
 ```xml
@@ -527,6 +501,136 @@ To declare `prototype` mode, add `prototype="true"` to the module declaration as
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	prototype="true">
 ```
+
+
+## Adding New Modules
+
+The following is a worked example of creating a new Module, replace anything in curly braces with your own values
+e.g. in this example, the {customer}.xml is skyve.xml, and {moduleName}.xml is newModuleExample.xml
+
+### Updating the {customer}.xml
+
+In the following example we have the default skyve customer, skvye.xml, with just the admin module:
+
+```xml
+...
+    <modules homeModule="admin">
+        <module name="admin"/>
+    </modules>
+...
+```
+
+To add the new `newModuleExample` module, the customer xml (skyve.xml in this case) is updated as so:
+
+```xml
+...
+    <modules homeModule="newModuleExample">
+        <module name="admin"/>
+        <module name="newModuleExample"/>
+    </modules>
+ ...
+```
+
+In Skyve 9.0.0 onwards, there is a maven target for adding a new module
+
+```
+mvn skyve:newModule
+```
+
+This will prompt you for the new module name, then create a new module directory and module.xml with the specified name. It will also update your customer.xml with the new module. Note: the new module will not pass generate domain, some required fields will be missing (such as the default view).
+
+### Adding the new module package
+
+A package for the new module (newModuleExample) should be created under {projectName}/src/main/java/modules/ (alongside admin.xml in all projects).
+
+![New Module package](../assets/images/modules/new-module-package.png "New Module package")
+
+This new Module package should include:
+    - {moduleName}.xml where the moduleName matches the module name added to {customerName}.xml (newModuleExample.xml in this example)
+    - at least one Document package (ExampleDocument in this case) with a {documentName}.xml inside
+
+
+{moduleName}.xml should look something like the following:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<module xmlns="http://www.skyve.org/xml/module" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" title="New Module Example" 
+	name="newModuleExample" xsi:schemaLocation="http://www.skyve.org/xml/module ../../schemas/module.xsd">
+    <homeRef>list</homeRef>
+    <homeDocument>ExampleDocument</homeDocument>
+    <documents>
+    		<document ref="ExampleDocument"/>
+    </documents>
+    <roles>
+	    	<role name="ExampleDocumentMaintainer">
+	    		<description>CRUD access to ExampleDocument.</description>
+	    		<privileges>
+					<document name="ExampleDocument" permission="CRUDC" />
+	    		</privileges>
+	    	</role>
+    </roles>
+    <menu>
+	    	<list name="Example Documents">
+	    		<role name="ExampleDocumentMaintainer"/>
+	    	</list>
+    </menu>
+</module>
+```
+
+The `name` defined in the module should match the module name used in the customer xml and the package created
+
+```xml
+<module xmlns="http://www.skyve.org/xml/module" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" title="New Module Example" 
+	name="newModuleExample" xsi:schemaLocation="http://www.skyve.org/xml/module ../../schemas/module.xsd">
+```
+
+At least one Document should be defined (ExampleDocument in this case):
+
+```xml
+<documents>
+	<document ref="ExampleDocument"/>
+</documents>
+```
+
+A role should be created (ExampleDocumentMaintainer) and a menu should be added:
+
+```xml
+<roles>
+    	<role name="ExampleDocumentMaintainer">
+    		<description>CRUD access to ExampleDocument.</description>
+    		<privileges>
+				<document name="ExampleDocument" permission="CRUDC" />
+    		</privileges>
+    	</role>
+</roles>
+```
+
+A menu should be added for the module:
+
+```xml
+<menu>
+    	<list name="Example Documents" query="qAllExampleDocuments">
+    		<role name="ExampleDocumentMaintainer"/>
+    	</list>
+</menu>
+```
+
+And a query needs to be created for the Document:
+
+```xml
+<queries>
+    	<query name="qAllExampleDocuments" documentName="ExampleDocument">
+    		<description>Default Query for all ExampleDocument</description>
+    		<columns>
+    			<column binding="bizKey"/>
+    		</columns>
+    	</query>
+</queries>
+```
+
+You can now run up the application and see the new Module, if the new Module is not visible, check the roles assigned to the logged in user, you may need to Add the new role via the UI (Admin > Security Admin > Users > zoom into the logged in user > Roles tab > add the new Role created (ExampleDocumentMaintainer in this example), then log out and log back in to see the new Module.
+
+
 
 **[⬆ back to top](#modules)**
 

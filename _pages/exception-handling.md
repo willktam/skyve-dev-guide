@@ -8,6 +8,8 @@ sidebar:
   nav: docs
 ---
 
+# Exception Handling
+
 Skyve provides powerful error management capabilities extending general
 Java Exception handling.
 
@@ -39,7 +41,7 @@ browser.
 The native Skyve validation lifecycle event can be overridden in the
 associated document Bizlet class. Developer validations will occur after
 the native server side validation so that the Developer does not have to
-code against implicit validation failures like requiredness – since this
+code against implicit validation failures like requiredness - since this
 has been handled by Skyve.
 
 Note: Uniqueness constraints are not manifested as database constraints
@@ -146,6 +148,8 @@ throws Exception {
 
 _The BeanValidator utility class provides access to the native
 Validation capability_
+
+For more information on the BeanValidator - see [Utility Classes](https://skyvers.github.io/skyve-dev-guide/utility-classes/)
 
 **[⬆ back to top](#exception-handling)**
 

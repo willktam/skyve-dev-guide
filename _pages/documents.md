@@ -69,7 +69,85 @@ Each document.xml includes the following metadata:
 
 _Document.xml sections_
 
+### Persistent documents
+
+If the document includes a 	`persistent` declaration, instances of the document will be persisted in the primary data store (database).
+
+An example persistent declaration is:
+
+```xml
+<persistent name="ADM_Contact"/>
+```
+
+In this case the combination of `name`, `catalog` and `schema` describe where rows corresponding to the document instances will be stored in the primary data store. Typically `catalog` and `schema` if the tables are to be in the primary catalog or schema of the primary data store (as per the settings in the deployed `.json` settings file), however these can be specified here if the table is located in another area.
+
+#### Persistent strategy and inheritance
+
+Skyve supports inheritance between documents, to maximise re-use, and improve quality.
+
+If you have a number of documents that have a subset of common attributes, you can declare an abstract document with the common attributes, and then other documents that extend this, inheriting behaviours and taking advantage of reusable view components.
+
+See more details at [Inheritance](./../_pages/inheritance.md)
+
+#### Cache
+
+Skyve 3.0.0 introduced support for in-memory caching via the metadata and for developers in code. This adds a write-through cache option per document using an in-memory cache that sits between Hibernate and Skyve's persistence layer. If declared, the read and write operations are to/from the cache. Skyve handles keeping Hibernate and the persistent datastore in sync.
+
+```xml
+<persistent name="ADM_Contact">
+	<cache>reference</cache>
+</persistent>
+```
+
+Declaring a cache for a persistent document has the effect of increasing the memory load on the server but decreasing the load on the database, so for example, in servers where there is a H2 database co-located it will have minimal noticeable performance impact. However if you are accessing a database across a network and you have an expensive document to read from/write to, this could have quite a noticeable impact on application performance. For developers, the `CacheUtil` utility class can be invoked by developers and Skyve will handle the management of the cache. A `getJCache()` and `getEHCache()` method can be used depending on the type of cache required.
+
+Hibernate caching in Skyve works in tandem with database caching mechanisms. The hibernate second level cache stores an internal representation of the object approximating the tuple rather than the domain object - no non-persistent representation foreign keys, un-related object etc. These are inflated to the first level cache (as domain objects).
+There is one second level cache and multiple first level caches per Skyve conversation. 
+
+If items are in the cache and a DocumentQuery is used to retrieve items, the database is interrogated to get the results of filtering etc, however the objects are hydrated from the cache rather that from the database.
+
+The cache `name` refers to a name that has been declared in the deployed `.json` properties file within the `hibernate` properties stanza as follows:
+
+```json
+The hibernate stanza needs a new cache section to define the default Skyve caches, and is where any per-project custom cache settings are to be defined:
+
+prettySql: false,
+    caches: {
+        "eternal": {
+            // Max conversations allowed in heap memory before being moved off-heap or to disk
+            heapSizeEntries: 10,
+            // Max off-heap memory size - 0 indicates no usage
+            offHeapSizeMB: 0,
+            expiryPolicy: "eternal" // "timeToLive" or "timeToIdle"
+        },
+        "reference": {
+            // Max conversations allowed in heap memory before being moved off-heap or to disk
+            heapSizeEntries: 1000,
+            // Max off-heap memory size - 0 indicates no usage
+            offHeapSizeMB: 0,
+            expiryPolicy: "timeToIdle", // "timeToLive" or "eternal"
+            // Number of minutes to wait until expiring a hibernate object from the cache
+            expiryTimeMinutes: 10
+        }
+    }
+```
+
+The `eternal` and `reference` examples are provided by default, however are merely examples and caches can be declared here as required.
+
+Using the above examples, if the `Contact` document was declared using the `eternal` cache, then the most recent 10 Contacts loaded from the database will remain in the cache while the application runs. If another Contact is loaded, then the oldest cache item is removed and the new item added to the cache and so on.
+
+Similarly, for the `reference` example above, the cache will contain up to 1000 Contacts but in this case each item will only remain in the cache for 10 minutes before being expunged.
+
+#### SingletonCachedBizlet
+
+For documents where there is only one instance per datastore, user, datagroup or customer, you can implement the `SingletonCacheBizlet` class rather than use the `persistent` declaration for the document. 
+
+This approach is described in detail at [Singleton Documents](./../pages/common-patterns)
+
+Note that whereas Hibernate caching is for caching a result set or multiple records, the singleton just holds onto a single object in memory. This would cause memory pressure if you tried to use this strategy for large result sets.
+
 ### bizKey
+
 To enable the application to display references simply, each document
 must define a business key (*bizKey*) definition (similar to a Java
 `toString()` method for the document). The *bizKey* is the default
@@ -95,8 +173,8 @@ An example *bizKey* referencing a coded method might be:
 ```xml
 <bizKey>
 	<![CDATA[
-		  	return modules.admin.Contact.ContactBizlet.myBizKey(this);
-		]]>	
+		return modules.admin.Contact.ContactBizlet.myBizKey(this);
+	]]>	
 </bizKey>
 ```
 
@@ -135,6 +213,117 @@ If an attribute includes a *description*, this will be rendered as
 tool-tip help button in the detail view. The *description* can
 contain simple markup as it will be rendered as HTML.
 
+#### Attribute usage
+
+The usage attribute in Skyve is used to differentiate between **Domain Model** and **View Model** attributes within a document’s metadata declaration. This provides a structured way to indicate whether an attribute is intended for backend data persistence, user interface representation, or both.
+
+Usage Values:
+
+- `domain`: The attribute is intended solely for the domain model. It may be included in persistence or business logic but may not be relevant for user interaction in the UI.
+- `view`: The attribute is used only in the view model, meaning it is relevant for UI rendering but probably not stored in the database.
+- `both` (default if not specified): The attribute is used for both domain and view models, meaning it probably persisted as well as being displayed in the UI.
+
+**Effects of usage:**
+
+1. Data Builders & filtering:
+    - The `Data`Builder class can filter attributes when generating test data, ensuring only domain attributes are used in test builds.
+2. `AbstractDomainTest` behavior:
+    - Skyve’s `AbstractDomainTest` logic ensures that test validation does not mistakenly include view-only attributes in domain-level operations.
+3. Auditing defaults:
+    - If an attribute is set to `view` and does not have an explicit audit configuration, it defaults to not audited, ensuring auditing remains relevant to persisted data.
+
+**Example:**
+
+```xml
+<text name="displayOnlyField" persistence="false" usage="view">
+    <displayName>Display Only</displayName>
+    <description>This field is used only for UI rendering and is not persisted.</description>
+</text>
+
+<text name="persistedField" usage="domain">
+    <displayName>Stored Field</displayName>
+    <description>This field is stored in the database but is not intended for UI display.</description>
+</text>
+```
+
+#### Attribute sensitivity
+
+![Attribute Sensitivity example](../assets/images/documents/attribute-sensitivity-example.png)
+
+When adding attributes to a document, a developer should consider the sensitivity level of the data that will be used. The sensitivity level is used during skyve's backup feature to obfuscate certain data based on how sensitive it is. This is a security feature allowing a business to make a backup of their data to share with others while ensuring that whoever receives the backup sees only that which they have access to.
+
+There are six sensitivity levels to choose from, highlighted below in ascending order of data sensitivity. This hierarchy ensures that as you progress from "None" to "Secret", the data becomes increasingly sensitive, necessitating stricter controls and more robust obfuscation when shared during backups.
+
+- **None** – This data is regarded as non-sensitive and can be shared freely with any party without restrictions. It poses no risk to the business or individuals if it becomes public.
+- **Internal** – Information intended for use within the organisation. It is not meant to be shared externally, but it does not contain critical or highly sensitive data. Sharing it outside the organisation could potentially cause minor issues.
+- **Confidential** – This data is sensitive and should only be shared with trusted individuals or departments. Unauthorized access could harm the organisation's operations or reputation. It is protected, and access is generally restricted to specific roles.
+- **Restricted** – Data that is sensitive and closely controlled. Access is typically limited to a small group of authorised individuals within the organisation. Improper sharing of this data could lead to significant legal, financial, or operational consequences.
+- **Personal** – This pertains to personally identifiable information (PII) like names, addresses, or any data that may be associated with an individual. Unauthorised disclosure of personal information can give rise to privacy breaches, legal repercussions, and a loss of trust.
+- **Secret** – The most sensitive level of information, where unauthorised access could lead to severe consequences, such as financial loss, reputational damage, or exposure of critical business or security-related information. Strict protocols are necessary to manage, store, and share this data securely.
+
+**Obfuscation strategies**
+
+Skyve attempts to ensure that sensitive data is obfuscated while retaining enough information for testing or debugging purposes. Different attribute types are obfuscated in different ways to ensure that the data is not easily readable while still being usable in a backup context. Obfuscation is not intended to be reversible, and the original data should not be recoverable from the obfuscated data.
+
+1. **Text Attributes (`text`, `markup`, `memo`, `id`)**:
+   - Text attributes are redacted by masking the middle part of the string with asterisks (`*`).
+   - For email addresses, the part before and after the `@` symbol is separately redacted.
+   - The number of visible characters at the start and end of the string depends on its length.
+
+   Example:
+   ```
+   Input: "example@example.com"
+   Output: "ex****@ex****"
+   ```
+
+2. **Numeric Attributes (`integer`, `longInteger`, `decimal2`, `decimal5`, `decimal10`)**:
+   - Numeric attributes are rounded to the nearest multiple of 10.
+   - This ensures that the original value is obfuscated while retaining a general sense of scale.
+
+   Example:
+   ```
+   Input: 123
+   Output: 120
+   ```
+
+3. **Date Attributes (`date`, `dateTime`, `timestamp`)**:
+   - Dates are rounded to the first day of the month.
+   - Timestamps are further rounded to midnight on the first day of the month.
+
+   Example:
+   ```
+   Input: 2023-10-15
+   Output: 2023-10-01
+   ```
+
+4. **Time Attributes (`time`)**:
+   - Time attributes are rounded to the nearest hour, with minutes and seconds set to zero.
+
+   Example:
+   ```
+   Input: 14:37:45
+   Output: 14:00:00
+   ```
+
+5. **Geometry Attributes (`geometry`)**:
+   - Geometric coordinates (latitude and longitude) are rounded to the nearest whole number.
+   - This reduces precision while maintaining approximate location information.
+
+   Example:
+   ```
+   Input: Point(123.456, 78.910)
+   Output: Point(123, 79)
+   ```
+
+6. **Content and Image Attributes (`content`, `image`)**:
+   - These attributes are nullified to completely remove sensitive data.
+
+   Example:
+   ```
+   Input: Binary content
+   Output: null
+   ```
+
 ### Attribute types
 
 Developers should note that database specific implementations of each
@@ -147,7 +336,7 @@ The following attribute types are available:
   -------------- | ----------- | -------------- | -------
   association    | A reference to another document.<br>Associations may be either an aggregation or composition and must include the name of the document which is the subject of the association.<br>Associations may optionally include queryName - the name of a metadata query defined in the *module.xml* which provides eligible document instances.<br>Associations of type composition will cascade delete. | lookup | ![](../assets/images/documents/image57.png)<br>In this example, the document has a reference to the Contact document called Contact.<br>If the association above was type composition (rather than aggregation), deletion of the document would cascade and delete referenced Contacts.<br>Note that specifying a *queryName* is optional. If no *queryName* is specified, Skyve will supply the default or generic inferred query for the associated document.
   boolean         | True or False<br>If a boolean attribute is not marked as required, the value may also be null. | checkBox | ![](../assets/images/documents/image58.png)<br>In this example, the attribute is not required. Non-requiredness means that null is a valid value for the attribute.
-  collection      | An orderable collection of references to another document.<br>Collections must specify the *documentName* - the name of the document which is the subject of the collection.<br>Collections may be either *child*, *aggregation* or *composition* type.<br>*Child* collections belong to the document and cascade deletion will occur. Members of *child* collections have a *parent* reference automatically created and assigned. By default, interactions with *child* members will occur in modal windows and within the same transaction as interactions with the *parent*.<br>Collections must have a *minCardinality* (which can be 0) and may optionally have a *maxCardinality*.<br>Collections may be ordered, either implicitly by the user (drag and drop within a grid) or specifically by the developer (using the order by clause).<br>Collections may specify a uniqueness constraint within the context of the *parent*'s collection (rather than within the customer's scope).<br>Aggregation and composition collections may specify a *queryName* unless the document's default query is to be used to define eligible document instances. | dataGrid (child, composition)<br>OR<br>dataGrid with a row containing a lookup (aggregation) | ![](../assets/images/documents/image59.png)<br>In this example, the document has a collection of children called *Interactions*. Since minCardinality is 0, the document will be valid even if no children exist. The collection will be automatically reordered as defined by the ordering clause (*interactionDate*, then *interactionTime*, then *interactionType*) whenever the bean is saved.<br>All interactions will have a reference to the document called *parent*.<br>If the document is deleted, all children will also be deleted.<br>![](../assets/images/documents/image60.png)<br>In this example, the collection is ordered, meaning that the user can re-order the collection by drag-drop in the view. The ordering performed by the user will be preserved when the bean is saved.<br>This example includes a uniqueness constraint applied within the context of the collection to prevent the same ContactCategory being added twice to the same collection.<br>Because the collection is of type *aggregation* (rather than *composition*) deleting the document will not cause cascade delete of the ContactCategory members of the collection.
+  collection      | An orderable collection of references to another document.<br>Collections must specify the *documentName* - the name of the document which is the subject of the collection.<br>Collections may be either *child*, *aggregation* or *composition* type.<br>*Child* collections belong to the document and cascade deletion will occur. Members of *child* collections have a *parent* reference automatically created and assigned. By default, interactions with *child* members will occur in modal windows and within the same transaction as interactions with the *parent*.<br>Optionally, collections may declare their `usage` ("domain", "view" or "both") - this is a hint to developers about how the collection is used and for example can be used by developers to control whether collections are filled by Factory classes or in other generic code. <br>Collections must have a *minCardinality* (which can be 0) and may optionally have a *maxCardinality*.<br>Collections may be ordered, either implicitly by the user (drag and drop within a grid) or specifically by the developer (using the order by clause).<br>Collections may specify a uniqueness constraint within the context of the *parent*'s collection (rather than within the customer's scope).<br>Aggregation and composition collections may specify a *queryName* unless the document's default query is to be used to define eligible document instances. | dataGrid (child, composition)<br>OR<br>dataGrid with a row containing a lookup (aggregation) | ![](../assets/images/documents/image59.png)<br>In this example, the document has a collection of children called *Interactions*. Since minCardinality is 0, the document will be valid even if no children exist. The collection will be automatically reordered as defined by the ordering clause (*interactionDate*, then *interactionTime*, then *interactionType*) whenever the bean is saved.<br>All interactions will have a reference to the document called *parent*.<br>If the document is deleted, all children will also be deleted.<br>![](../assets/images/documents/image60.png)<br>In this example, the collection is ordered, meaning that the user can re-order the collection by drag-drop in the view. The ordering performed by the user will be preserved when the bean is saved.<br>This example includes a uniqueness constraint applied within the context of the collection to prevent the same ContactCategory being added twice to the same collection.<br>Because the collection is of type *aggregation* (rather than *composition*) deleting the document will not cause cascade delete of the ContactCategory members of the collection.
   colour         | A colour. | colourPicker | ![](../assets/images/documents/image61.png)<br>In this example no *shortDescripiton* is declared and as such no tool-tip help icon will be displayed next to widgets bound to this attribute.
   content        | Complex objects like movies, sound, word processing documents, spreadsheets, etc.<br>Content objects are automatically indexed by the textual indexer. | contentLink | ![](../assets/images/documents/image62.png)
   date           | A calendar date (year, month, day).<br>By default, Skyve will provide a calendar widget for selection, but the date can be modified as text.<br>Note that if a converter has been declared, the representation within the *textField* component will reflect that conversion. | textField | ![](../assets/images/documents/image63.png)
@@ -164,10 +353,14 @@ The following attribute types are available:
   text           | Generic text values.<br>Text attributes can be marked as indexed either for textual searching, or as a database index.<br>Text attributes may specify a value domain either constant, variant or dynamic - loosely typed value lists generated by methods in the document *Bizlet*. | textField<br>OR<br>combo if a domain is specified | ![](../assets/images/documents/image75.png)<br>In this example the method attribute is textually indexed.<br>Normally constant domains are implemented as enum type attributes, but in this case, the developer will be responsible for generating the domain value set (by overriding the `getConstantDomainValues()` in the *Bizlet*. By default the attribute will be displayed as a simple combo with the generated value set included in the combo list to constrain users to that value set.<br>If the developer sets a value which is not returned by the `getConstantDomainValues()` method (i.e. not in the domain value set), the bean validation will throw an exception to prevent the value from being persisted.
   time           | Time (hours, minutes, seconds).<br>Note that if a converter has been declared, the representation within the *textField* component will reflect that conversion. | textField | ![](../assets/images/documents/image76.png)
   timestamp      | Date with time (hours, minutes, seconds).<br>Note that if a converter has been declared, the representation within the *textField* component will reflect that conversion. | textField | ![](../assets/images/documents/image77.png)
+  inverseOne | See [Inverses](#inverses) | | |
+  inverseMany | See [Inverses](#inverses) | | |
 
 _Document attribute types_
 
-### Declaring `enum`
+### Enumerations
+
+#### Declaring `enum`
 
 An enumeration is a text field which is constrained to be one of a set of values, and can either declare values or refer to another attribute value set.
 
@@ -324,7 +517,7 @@ The `Binder.formatMessage()` method will return the declared (or inferred) `desc
 String output = Binder.formatMessage(CORE.getCustomer(), "You have selected the action `{loadAction}`.", bean);
 ```
 
-### Enum with domain
+#### Enum with domain
 
 You can conditionally restrict the list of enum values available to the user by declaring an enum attribute with a domain. This means that from the full list of values declared within the document (being generated into a proper Java enum for compile time checks), you can restrict the values available to the user at run time to those that are relevant. 
 
@@ -377,11 +570,72 @@ public List<DomainValue> getConstantDomainValues(String attributeName) throws Ex
 
   
 
+### Inverses
+
+The `inverseOne` and `inverseMany` attributes are used in conjunction with `association` and `collection` attributes to define the inverse relationship between documents. These attributes provide bidirectional navigation between related documents, without requiring explicit foreign key references in both directions. These attributes are non-persistent and will not create a column in the defined document's table.
+
+#### inverseOne
+
+The `inverseOne` attribute is used like an `association` to define the _inverse_ reference to an `association` on the referenced document. This is used when only one record on the inverse side relates to a single record on the target side.
+
+Effects of inverseOne:
+
+- It establishes a bidirectional relationship where the target document has an association containing the referring document (one to one).
+- This allows Skyve to infer the relationship without requiring an explicit foreign key reference on both sides.
+- The association _must_ be declared on the referenced document.
+- The inverseOne attribute can be included in views as a binding, or in module queries as a column.
+
+```xml
+<!-- Contact.xml document -->
+<inverseOne name="customer">
+	<displayName>Customer</displayName>
+	<documentName>Customer</documentName>
+	<referenceName>primaryContact</referenceName>
+</inverseOne>
+```
+
+In this example:
+
+- The `Customer` document defines an association to a `Contact` named `primaryContact` that contains a Contact instance.
+- The `Contact` document has an inverse relationship to a `Customer`.
+- This allows Skyve to resolve the inverse relationship without additional metadata.
+
+#### inverseMany
+
+The `inverseMany` attribute is used like a collection to define the inverse reference to an association on the target document. This is used when many records on the inverse side relate to a single record on the target side.
+
+Effects of inverseMany:
+
+- It allows Skyve to resolve the inverse reference dynamically without requiring an explicit foreign key.
+- When an instance of the target document is modified, Skyve ensures that the reference is properly updated on both sides of the relationship.
+- This is useful when the parent document does not explicitly store a reference to a child, but needs to navigate back to it.
+
+```xml
+<!-- Customer.xml -->
+<inverseMany name="contacts">
+	<displayName>Contacts</displayName>
+	<documentName>Contact</documentName>
+	<referenceName>customer</referenceName>
+</inverseMany>
+```
+
+In this example:
+
+- The `Contact` document has an association to a Customer named `customer`.
+- Skyve will automatically resolve the relationship, allowing a `Customer` to retrieve its `contacts` without an explicit database reference. This can be used as if a collection of `Contact` instances were stored in the `Customer` document.
+
+`<inverseMany/>` can have an `<ordering/>` the same as `<collection/>` (from Skyve 9.4.0). If the ordering bindings are simple and persistent then the ordering is added to the orm.xml, otherwise Skyve orders the collection when loaded. To re-sort a collection or `inverseMany` from application code according to that metadata (or an explicit ordering), see [Sorting collections](/utility-classes/#sorting-collections).
+
+#### Cascade
+
+The cascade attribute can be specified to cascade the save and delete operations to the inverse document. This is useful when the inverse document is a composition and should be deleted when the parent document is deleted, or changes made in an edit view should flow across the inverse to the persistent attribute.
+
 ### Conditions
+
 Document conditions are code snippets which return a Java `boolean` value,
 and which can be used by view declarations.
 
-By restricting client-side view conditions to server-side compiled code
+By restricting client-side view conditions to server-side compiled code,
 rather than client-side Javascript (or other client script), the risks
 of developer bugs is significantly reduced. Only the result of the
 condition is passed to the client, so the chance of an invalid or
@@ -393,19 +647,21 @@ in one language.
 
 ```xml
 <condition name="personType">
-  <![CDATA[ContactType.person.equals(getContactType())]]>
+	<expression>
+  		<![CDATA[ContactType.person.equals(getContactType())]]>
+  	</expression>
 </condition>
 ```
-_Although available to client-side views, conditions can take advantage of strongly typed compiled code._
+_Although available to client-side views, conditions can take advantage of strongly typed compiled code or validated expressions._
 
-_Condition declaration_
+#### Condition declaration
 
-Conditions become methods of the generated document *Impl* classes.
+Conditions become methods of the generated document classes.
 The code within the condition declaration is placed verbatim in the
-method allowing condition methods to be used in developer server-side
-code (including *Bizlet* code).
+method, allowing condition methods to be used in developer server-side
+code (e.g. *Bizlet* or *Extension* code).
 
-For each condition declaration Skyve generates pairs of condition
+For each condition declaration, Skyve generates pairs of condition
 methods (both positive and negative methods are generated).
 
 ```java
@@ -420,6 +676,22 @@ public boolean isNotPersonType() {
 }
 ```
 _Generated condition method pairs._
+
+#### Expression conditions
+
+In addition to declaring conditions using Java, conditions can also make use of [Skyve expressions](./../_pages/expressions.md) 
+for evaluation which can be used to return a boolean. For example, to write a simple condition checking 
+if a boolean attribute is true:
+
+```xml
+<condition name="showExistingGroups">
+	<expression>
+		{el:bean.groupsExist}
+	</expression>
+</condition>
+```
+
+instead of the alternate Java logic which would be defined as `Boolean.TRUE.equals(groupsExist)`.
 
 ### Constraints
 Uniqueness constraints can be defined within the *document.xml*.
@@ -529,7 +801,7 @@ key constraints in the data tier, as follows:
 
 ### Database indexes
 
-Hibernate™ ensures that all primary keys are indexed unique and that all
+Hibernate ensures that all primary keys are indexed unique and that all
 tables have a primary key defined.
 
 Skyve platform columns *bizCustomer* (the customer context in which the

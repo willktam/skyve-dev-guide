@@ -8,8 +8,6 @@ sidebar:
   nav: docs
 ---
 
-## Utility classes
-
 Skyve provides the following utility classes:
 
 <table>
@@ -18,45 +16,59 @@ Skyve provides the following utility classes:
 	<th>Description</th>
 </thead>
 <tbody>
-<tr>
-	<td>Binder</td>
-	<td>Provides methods for generic bean binding manipulations, including: <br><br><ul><li>generic get() and set() methods for a bean with nominated binding, </li><li><code>formatMessage()</code> for using binding substitutions in string outputs using the correct converter</li><li><code>convertAndSet()</code> for setting a converted string value using the correct converter</li><li><code>createCompoundBinding()</code> for correctly constructing compound bindings (i.e. across document references), and </li><li>read and interpret the nature of bean properties.</li></ul></td>
-</tr>
-<tr>
-	<td>CORE</td>
-	<td>Utility class for the core Skyve API.</td>
-</tr>
-<tr>
-	<td>DocumentQuery</td>
-	<td>Provides methods for constructing object queries without resorting to constructing OQL or SQL strings.</td>
-</tr>
-<tr>
-	<td>Ext</td>
-	<td>External and extra dependency APIs (Bizport and POI, mail, reporting, jobs and developer access to the Skyve tagging feature).</td>
-</tr>
-<tr>
-	<td>ModulesUtil</td>
-	<td>Contains a number of business-focused methods and enumerations for cross-module functionality, including: <br><br><ul><li><code>getNextDocumentNumber()</code> to create unique formatted serial document identifiers, </li><li> methods for working with business periods (month, quarter, half-year etc.) and frequency, </li><li><code>currentAdminUser()</code> which identifies the current conversation user as an admin module user, </li><li> coalesce methods, and </li><li> basic Tax and loan calculation methods.</li></ul></td>
-</tr>
-<tr>
-	<td>Persistence</td>
-	<td>Provides access to interact directly with the singleton persistence mechanism (detailed below).</td>
-</tr>
-<tr>
-	<td>Util</td>
-	<td>Bean-level generic utilities, including generic bean methods e.g. <code>cloneToTransientBySerialisation()</code>.</td>
-</tr>
+  <tr>
+    <td>BeanValidator</td>
+    <td>Various methods for validation
+      <ul>
+        <li><code>validateBeanAgainstBizlet()</code> - Validate a bean against its bizlet .validate() - NB This validation method does NOT recursively validate using bizlets through the base document hierarchy as the bizlet class should be arranged in such a way as to extend the bizlet methods required of the base bizlet classes through the standard java extension mechanism.</li>
+        <li><code>validateBeanAgainstDocument()</code> - Validate a document instance against its metadata.</li>
+        <li><code>validateBeanPropertyAgainstAttribute()</code> - Validate a document attribute against its metadata</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td>Binder</td>
+    <td>Provides methods for generic bean binding manipulations, including: <br><br><ul><li>generic get() and set() methods for a bean with nominated binding, </li><li><code>formatMessage()</code> for using binding substitutions in string outputs using the correct converter</li><li><code>convertAndSet()</code> for setting a converted string value using the correct converter</li><li><code>createCompoundBinding()</code> for correctly constructing compound bindings (i.e. across document references), </li><li><code>orderByMetaData()</code> and <code>order()</code> for sorting collections and inverseManys, and </li><li>read and interpret the nature of bean properties.</li></ul></td>
+  </tr>
+  <tr>
+    <td>CORE</td>
+    <td>Utility class for the core Skyve API.</td>
+  </tr>
+  <tr>
+    <td>DocumentQuery</td>
+    <td>Provides methods for constructing object queries without resorting to constructing OQL or SQL strings.</td>
+  </tr>
+  <tr>
+    <td>EXT</td>
+    <td>External and extra dependency APIs (Bizport and POI, mail, reporting, jobs and developer access to the Skyve tagging feature).</td>
+  </tr>
+  <tr>
+    <td>ModulesUtil</td>
+    <td>Contains a number of business-focused methods and enumerations for cross-module functionality, including: <br><br><ul><li> methods for working with business periods (month, quarter, half-year etc.) and frequency, </li><li><code>currentAdminUser()</code> and <code>currentAdminUserProxy()</code> which identifies the current conversation user as an admin module user, </li><li> coalesce methods, and </li><li> basic Tax and loan calculation methods.</li></ul></td>
+  </tr>
+  <tr>
+    <td>Persistence</td>
+    <td>Provides access to interact directly with the singleton persistence mechanism (detailed below).</td>
+  </tr>
+  <tr>
+    <td>Time</td>
+    <td>Helper class to work with Skyve Date and Time classes.</td>
+  </tr>
+  <tr>
+    <td>Util</td>
+    <td>Bean-level generic utilities, including generic bean methods e.g. <code>cloneToTransientBySerialisation()</code>.</td>
+  </tr>
 </tbody>
 </table>
 
-### Document Number pattern
-The `nextDocumentNumber()` method is design for business focused identifiers (e.g. Purchase order numbers, Quotation numbers, Invoice numbers etc) from a central issuing authority, and handles concurrent use by multiple users.
+## Document Number pattern
+The Skyve `NumberGenerator` pattern is designed for business focused identifiers (e.g. Purchase order numbers, Quotation numbers, Invoice numbers etc) from a central issuing authority, and handles concurrent use by multiple users.
 
 Skyve automatically maintains `bizId` as a guaranteed unique identifier which can be generated independently within the client (or from a disconnected device or 3rd party system if required), but this is for internal use only and is not intended to be used for business purposes.
 
-The `nextDocumentNumnber()` is intended for indelible/auditable business processes, where numbers are never reassigned (even if the owning document might be deleted), and as such, would normally be assigned when the owning document is saved (rather than created). If the number is assigned when the document is created, if the user decides not to save the document, that number will have been allocated, but there will be no owning document.
+The `getNumberGenerator().next()` is intended for indelible/auditable business processes, where numbers are never reassigned (even if the owning document might be deleted), and as such, would normally be assigned when the owning document is saved (rather than created). If the number is assigned when the document is created, if the user decides not to save the document, that number will have been allocated, but there will be no owning document.
 
-The usual pattern for using `nextDocumentNumber()` is as follows:
+The usual pattern for using `next()` is as follows:
 
 First add either a `blurb` or disabled `textField` to the view, with visibility controlled by `persisted` (i.e. there is no number to show until the document is saved).
 
@@ -73,7 +85,7 @@ To assign the numbers during save, place the following code into the `preSave()`
 ```java
 if (bean.getPurchaseOrderNumber() == null) {
 	// get the next assistance id
-	bean.setPurchaseOrderNumber(ModulesUtil.getNextDocumentNumber(PurchaseOrder.MODULE_NAME, PurchaseOrder.DOCUMENT_NAME, PurchaseOrder.purchaseOrderPropertyName)));
+	bean.setPurchaseOrderNumber(CORE.getNumberGenerator().next(PurchaseOrder.MODULE_NAME, PurchaseOrder.DOCUMENT_NAME, PurchaseOrder.purchaseOrderPropertyName)));
 }
 ```
 
@@ -82,16 +94,15 @@ Or alternatively, if you want to have prefixed numbers like 'PO0001', use the al
 ```java
 if (bean.getPurchaseOrderNumber() == null) {
 	// get the next assistance id
-	bean.setPurchaseOrderNumber("PO",ModulesUtil.getNextDocumentNumber(PurchaseOrder.MODULE_NAME, PurchaseOrder.DOCUMENT_NAME, PurchaseOrder.purchaseOrderPropertyName, 4)));
+	bean.setPurchaseOrderNumber(CORE.getNumberGenerator().next("PO", PurchaseOrder.MODULE_NAME, PurchaseOrder.DOCUMENT_NAME, PurchaseOrder.purchaseOrderPropertyName, 4)));
 }
-
 ```
 
-### Binder
+## Binder
 
 Binder is a utility class which handles beans in a generic way, taking into account customer default settings and customer overriding.
 
-#### formatMessage() and convertAndSet()
+### formatMessage() and convertAndSet()
 
 Developers can take advantage of the `formatMessage()` to construct valid String output using the correct converter, as declared in customer or document metadata. Similarly `convertAndSet()` takes a String argument and sets the bean attribute using the correct converter `fromDisplayValue()` method.
 
@@ -117,7 +128,7 @@ Similarly, `convertAndSet()` takes a String, applies the correct converter `from
 Binder.convertAndSet(timesheet, WeeklyTimesheet.weekEndingDatePropertyName, "12-Dec-2019");
 ```
 
-#### generic get() and set()
+### Binder generic get() and set()
 
 Using the Binder for generic approaches to getting and setting attribute values provides a powerful way to manipulate beans.
 
@@ -129,7 +140,59 @@ DateOnly weekEndingDate = Binder.get(timesheet, WeeklyTimesheet.weekEndingDatePr
 Binder.set(timesheet, WeeklyTimesheet.weekEndingDatePropertyName, weekEndingDate);		
 ```
 
-### CORE
+### Sorting collections
+
+Collections and `inverseMany` attributes can declare default ordering in document metadata (see [Documents](/documents/) and [Skyve persistence](/skyve-persistence-mechanisms/)). Skyve also re-applies that ordering during common UI interactions (for example after zooming out of a child edit). When application code mutates a collection and needs it sorted immediately, use one of the approaches below.
+
+#### Sort by metadata with `Binder.orderByMetaData()`
+
+`Binder.orderByMetaData()` sorts a collection or `inverseMany` according to the `<ordering>` declared on that attribute. The binding may be simple or compound. For child collections declared `ordered="true"`, elements are ordered by `bizOrdinal` before any declared `<order>` bindings.
+
+```java
+// Sort by the collection's metadata ordering
+Binder.orderByMetaData(bean, Risk.riskControlsPropertyName);
+```
+
+```java
+// Compound bindings are supported (navigates to the owning bean first)
+Binder.orderByMetaData(bean,
+		Binder.createCompoundBinding(Parent.childPropertyName, Child.linesPropertyName));
+```
+
+If the target attribute has no ordering (and is not an ordered child collection), the call is a no-op.
+
+#### Sort with an explicit ordering via `Binder.order()`
+
+Use `Binder.order()` when the required sort is not (or not only) the metadata ordering. Build each criterion with `CORE.newOrdering()`.
+
+```java
+Binder.order(bean.getRiskControls(),
+		CORE.newOrdering(RiskControl.namePropertyName, SortDirection.ascending),
+		CORE.newOrdering(RiskControl.createdTimestampPropertyName, SortDirection.descending));
+```
+
+`Binder.order()` works on any `List`, not only Skyve beans. Before calling `Collections.sort()`, Skyve checks whether the list is already in order — sorting an already-ordered Hibernate collection marks it dirty even when the element sequence does not change.
+
+#### Sort in place with `Collections.sort()` / `List.sort()`
+
+Standard JDK sorting mutates the list in place. Prefer this for transient lists (domain values, in-memory results). On a persistent Hibernate collection it will mark the collection dirty even if you only re-establish the existing order.
+
+```java
+Collections.sort(bean.getRiskControls(),
+		Comparator.comparing(RiskControl::getName, Comparator.nullsFirst(String::compareToIgnoreCase)));
+```
+
+#### Produce a sorted copy with `Stream.sorted()`
+
+`stream().sorted()` does not mutate the original list. Collect into a new list when you need a sorted view without changing the persistent collection order (or its dirty state).
+
+```java
+List<RiskControl> sorted = bean.getRiskControls().stream()
+		.sorted(Comparator.comparing(RiskControl::getName, Comparator.nullsFirst(String::compareToIgnoreCase)))
+		.collect(Collectors.toList());
+```
+
+## CORE
 
 CORE offers a number of key convenience methods.
 
@@ -137,10 +200,12 @@ Method | Description/Usage
 -------|------------
 `getUser()` | returns the metadata user/user principal (as distinct from the current `modules.admin.domainUser`)
 `getCustomer()` | returns the current customer in for the current metadata user/user principal
+`getNumberGenerator()` | returns the Skyve sequence function to create unique formatted serial document identifiers
+`newOrdering()` | creates an `Ordering` used by `Binder.order()` and query ordering APIs
 `getPersistence()` | See Persistence below
 `getStash()` | returns a convenience Map for the current conversation available to the developer
 
-#### Session and conversation storage
+### Session and conversation storage
 
 Skyve offers a temporary cache/stash at both the conversation and session context level. Use of the stash can impact performance and developers must consider the implications carefully. Minimizing the overheads in keeping the conversation and session state increases application scaleability.
 
@@ -170,68 +235,208 @@ and then to retrieve
 someOtherObject = CORE.getPersistence().getUser().getAttributes().get("someKey");
 ```
 
-### DocumentQuery
+## DocumentQuery
 
-*DocumentQuery* extends *ProjectionQuery* and provides the ability to
-retrieve persisted beans in a type-safe and secure way, without building
-SQL or OQL Strings.
+`DocumentQuery` extends `ProjectionQuery` and provides a type-safe and secure way to retrieve persisted beans without requiring developers to write SQL or OQL strings.
+
+Key Benefits:
+1. Abstracts developers from database-specific SQL, ensuring database independence.
+2. Enables compile-time checks on query code for better reliability.
+3. Ensures consistent security and performance via Skyve’s Persistence singleton.
+
+### Simple Example
+
+Create queries by specifying the module and document, optionally adding filter criteria.
 
 ```java
-// collect settlements between range, with area > 0
-// either from or to the current Grower
-DocumentQuery q = CORE.getPersistence().newDocumentQuery(VineyardChange.MODULE_NAME, VineyardChange.DOCUMENT_NAME);
-DocumentFilter dFrom = q.newDocumentFilter();
-DocumentFilter dTo = q.newDocumentFilter();
-q.getFilter().addBetween(VineyardChange.madePropertyName, firstDayOfYear, new DateOnly());
-q.getFilter().addGreaterThan(VineyardChange.transferredAreaPropertyName, Decimal5.ZERO);
+// Retrieve a list of inactive users
+DocumentQuery q = CORE.getPersistence().newDocumentQuery(User.MODULE_NAME, User.DOCUMENT_NAME);
 
-dFrom.addEquals(VineyardChange.fromGrowerPropertyName, bean);
-dTo.addEquals(VineyardChange.toGrowerPropertyName, bean);
-dTo.addOr(dFrom);
+// Add filter: inactive = false (i.e. active users)
+q.getFilter().addEquals(User.inactivePropertyName, Boolean.TRUE);
 
-q.getFilter().addAnd(dTo);
-
-List<VineyardChange> settlements = q.beanResults();
-for(VineyardChange settlement : settlements) {
-  settlement.setStatus(Status.completed);
-}
+List<UserExtension> inactiveUsers = q.beanResults();
 ```
 
-_Example DocumentQuery_
+This example returns all inactive users.
 
-In the example provided in the above example, the DocumentQuery is used to
-retrieve all VineyardChange beans. The beans are returned in a typed
-List and document permissions and scoping rules are automatically
-enforced by Skyve.
+Other filter methods include `addLessThan`, `addLessThanOrEqualTo`, `addGreaterThan`, `addGreaterThanOrEqualTo`, `addNull`, `addNullOrEqualTo`, `addIn`, and more.
 
-The use of DocumentFilter allows for correct enforcement of types at
-compile-time to reduce the possibility of errors arising from implicit
-type conversion which may arise if SQL strings were used.
+### Chaining Filters with AND
 
-### Ext
+To refine queries with multiple conditions combined using AND, chain filters directly on the main filter:
 
-The Ext class provides developers access to additional APIs as follows:
+```java
+// Find active users created after a specific date
+DocumentQuery q = CORE.getPersistence().newDocumentQuery(User.MODULE_NAME, User.DOCUMENT_NAME);
+
+// Add filter: inactive = false (i.e. active users)
+q.getFilter().addEquals(User.inactivePropertyName, Boolean.FALSE);
+
+// Add filter: createdDate > specificDate
+q.getFilter().addGreaterThan(User.createdDatePropertyName, specificDate);
+
+List<UserExtension> activeRecentUsers = q.beanResults();
+```
+
+This example returns active users created after the specified date.
+
+### Using OR Filters
+
+Combine multiple filters with OR logic directly on the main filter:
+
+```java
+final DocumentFilter codeFilter = q.newDocumentFilter();
+codeFilter.addEquals(Team.abbreviationPropertyName, code);
+
+final DocumentFilter altCodeFilter = q.newDocumentFilter();
+altCodeFilter.addEquals(Team.altCodePropertyName, code);
+
+q.getFilter()
+  .addOr(codeFilter)
+  .addOr(altCodeFilter);
+```
+
+Alternatively, wrap multiple OR conditions inside a filter and combine it with other filters using AND:
+
+```java
+final DocumentFilter wrapperOrFilter = q.newDocumentFilter();
+
+final DocumentFilter codeFilter = q.newDocumentFilter();
+codeFilter.addEquals(Team.abbreviationPropertyName, code);
+wrapperOrFilter.addOr(codeFilter);
+
+final DocumentFilter altCodeFilter = q.newDocumentFilter();
+altCodeFilter.addEquals(Team.altCodePropertyName, code);
+wrapperOrFilter.addOr(altCodeFilter);
+
+q.getFilter().addAnd(wrapperOrFilter);
+```
+
+### Sorting
+
+Specify the order of query results using `addBoundOrdering`. You can sort by one or more properties in ascending or descending order.
+
+```java
+DocumentQuery q = CORE.getPersistence().newDocumentQuery(Audit.MODULE_NAME, Audit.DOCUMENT_NAME);
+q.addBoundOrdering(Audit.createdDatePropertyName, SortDirection.descending);
+
+List<Audit> audits = q.beanResults();
+
+```
+
+This example returns all audits sorted by creation date in descending order.
+
+### Projection
+
+`DocumentQuery` supports projecting specific fields instead of entire beans, allowing queries to return only the data needed. Use `addBoundProjection` to specify which property to retrieve.
+
+```java
+DocumentQuery q = CORE.getPersistence().newDocumentQuery(Audit.MODULE_NAME, Audit.DOCUMENT_NAME);
+q.addBoundProjection(Audit.createdDatePropertyName);
+
+List<DateTime> createdDates = q.scalarResults(DateTime.class);
+```
+
+This example returns all audit creation dates.
+
+### Alternate Return Types
+
+Besides returning lists of full beans with `beanResults()`, you can retrieve a single result using `beanResult()`.
+
+```java
+DocumentQuery q = CORE.getPersistence().newDocumentQuery(Audit.MODULE_NAME, Audit.DOCUMENT_NAME);
+q.getFilter().addEquals(Bean.DOCUMENT_ID, bizId);
+
+Audit audit = q.beanResult();
+```
+
+This example retrieves the audit with the specified `bizId`.
+
+You can also retrieve scalar results for projected fields using `scalarResult()` or `scalarResults()` for single or multiple values, respectively:
+
+```java
+DateTime latestAuditCreatedDate = q.scalarResult(DateTime.class);
+```
+
+### Aggregate Functions
+
+`DocumentQuery` supports aggregate functions such as counting, summing, and averaging.
+
+```java
+DocumentQuery qCount = persistence.newDocumentQuery(Contact.MODULE_NAME, Contact.DOCUMENT_NAME);
+qCount.addAggregateProjection(AggregateFunction.Count, Bean.DOCUMENT_ID, "CountOfId");
+int numberOfContacts = qCount.scalarResult(Number.class).intValue();
+```
+
+This example returns the total number of `Contact` records.
+
+Other aggregate functions include `Sum`, `Min`, `Max`, and `Avg`.
+
+### Additional Configurations
+
+Control query behavior with methods like:
+1. `setMaxResults(int max)` — limits the number of results returned by the query.
+2. `setDistinct(boolean distinct)` - ensures the query returns distinct results.
+
+```java
+DocumentQuery q = CORE.getPersistence().newDocumentQuery(Audit.MODULE_NAME, Audit.DOCUMENT_NAME);
+q.addBoundOrdering(Audit.createdDatePropertyName, SortDirection.descending);
+q.setMaxResults(10);
+
+List<Audit> results = q.beanResults();
+```
+
+This example returns the 10 most recent audits.
+
+```java
+DocumentQuery q = CORE.getPersistence().newDocumentQuery(Audit.MODULE_NAME, Audit.DOCUMENT_NAME);
+q.addBoundOrdering(Audit.createdDatePropertyName, SortDirection.descending);
+q.addBoundProjection(Audit.createdDatePropertyName);
+q.setDistinct(true);
+
+List<DateTime> createdDates = q.scalarResults(DateTime.class);
+```
+
+This example returns the 10 most recent distinct created dates.
+
+For more querying options, we recommend developers read [Using bizQL](../queries/#using-bizql) and [Using SQL](../queries/#using-sql) and review the other query examples provided in that chapter.
+
+## EXT
+
+The EXT class provides developers access to additional APIs as follows:
 
   Method(s)        | Description/Usage
   ---------------- | ------------------
  `checkPassword()`, `hashPassword()` | check a password against a hash, or hash a password
- `clearTag()`, `createTag()`, `deleteTag()`, `getTagId()`,`getTags()`, `iterateTagged()`,` tag()`, `untag()` | developer access to Skyve's Tag function, allowing the developer to create methods which respond to the user selection
- `getCustomerRunningJobs()`, `runOneShotJob()`, `scheduleOneShotJob()` | manage jobs
- `sendMail()`, `writeMail()`, `getMailAttachmentFromContent()`, `getMailAttachmentFromReport()` | send or write mail items and produce mime-typed attachments from content or reports
+ `getCaching()` | Obtains an instance of the the Cache Manager for working with caches.
+ `getJobScheduler()` | Obtains an instance of the Job Scheduler for working with jobs in Skyve.
+ `getReporting()`    | Obtains an instance of the Reporting service for working with reports.
+ `getTagManager()`   | Obtains an instance of the Tag Manager for working with tags.
+ `sendMail()`, `writeMail()` | Send or write mail items
  `getDataStoreConnection()`, `newSQLDataAccess()` | access connections
- `runBeanReport()`, `runSQLReport()`, `runReport()` | run reports
  `newContentManager()` | access the content repository
  `newBizPortStandardGenerator`, `newBizPortWorkbook()`, `newBizPortSheet()` | developer access to customise Skyve's BizPort feature.
 
-### CommunicationUtil
+## CommunicationUtil
 
 For details of the CommunicationUtil class, see [Communication](./../_pages/communication.md)
 
-### ModulesUtil
+## Job Scheduler
+
+For more details of working with Jobs in Skyve, see [Jobs](./../_pages/jobs.md)
+
+  Method        | Description/Usage
+  ------------- | ------------------
+  `getCustomerRunningJobs()` | Returns a list of currently executing jobs, reports and background tasks for the current customer.
+  `runOneShotJob()`          | Executes a Skyve job once, starting immediately. It disappears from the Scheduler once it completes and a record is stored in the admin job log.
+  `scheduleOneShotJob()`     | Executes a Skyve job once at a particular date and time.
+
+## ModulesUtil
 
 ModulesUtil is intended to provide common business focused convenience methods and enumerations and also to provide an introductory reference to Skyve developers for accessing framework concepts and features for real-world applications.
 
-#### Enumerations
+### Enumerations
 
 Enumeration | Description
 ----------|--------
@@ -240,7 +445,7 @@ OccurrenceFrequency | Common frequencies (weekly, monthly, quarterly etc)
 OccurrencePeriod | Common periods (week, month, quarter etc)
 DayOfWeek | days of the week
 
-#### Methods
+### Methods
 
   Method(s)        | Description/Usage
   ---------------- | ------------------
@@ -248,25 +453,25 @@ DayOfWeek | days of the week
   `firstDayOfMonth()`, `lastDayOfMonth()`, `firstDayOfYear()`, `lastDayOfYear()` | convenience methods for important dates
   `calendarMonthName()`, `calendarToDay()`, `dayOfWeekToCalendar()`, `sqlDateFormatOnly()` | calendar conversion
 
-#### Comparison and String convenience methods
+### Comparison and String convenience methods
 
   Method(s)        | Description/Usage
   ---------------- | ------------------
   `bothNullOrEqual()` | handle nullable value comparison  
   `coalesce()`, `concatWithDelim()`, `enquote()`, `titleCase()` | basic String manipulations
 
-#### Unique document number generation
+### Unique document number generation
 
   Method(s)        | Description/Usage
   ---------------- | ------------------
-  `getNextDocumentNumber()`, `getNextLongDocumentNumber()` | thread-safe generation of unique numbers for documents
   `incrementAlpha()` | increment alphanumeric value
 
-#### bean and User
+### bean and User
 
   Method(s)        | Description/Usage
   ---------------- | ------------------
   `currentAdminUser()` | retrieve the modules.admin.domain.User from the user principal
+  `currentAdminUserProxy()` | retrieve the modules.admin.domain.User from the user principal without groups and roles
   `getCurrentUserContact()` | retrieve the contact details for the user principal
   `hasModule()` | determine whether a user has access to a specified module
   `lookupBean()` | shorthand way of finding a bean using a legacy key value
@@ -274,19 +479,19 @@ DayOfWeek | days of the week
   `getPersistentIdentifier()` | returns the database tablename for a given module.document
   `replaceBindingsInString()` | performs binding replacement whether the supplied string has the attribute displayName as the binding
 
-#### BizPort
+### BizPort
 
   Method(s)        | Description/Usage
   ---------------- | ------------------
   `standardBeanBizExport()`, `standardBeanBizImport()` | Code example of BizPort
 
-#### Comparators
+### Comparators
 
   Method(s)        | Description/Usage
   ---------------- | ------------------
   `DomainValueSortByCode`, `DomainValueSortByDescription` | Simple comparators for DomainValue lists.
 
-### Persistence
+## Persistence
 
 Skyve's Persistence mechanism is described in detail in
 * [Skyve Persistence Mechanisms](./../_pages/skyve-persistence-mechanisms.md)
@@ -301,39 +506,96 @@ Key persistence methods are:
 
   Method           | Description
   ---------------- | ------------------
-  get              | Instantiates a *Persistence* object
-  getUser          | Gets the current conversation *metadata.user*
-  begin, rollback, commit |   Control the state of the current transaction
-  evictAllCached, <br><br>evitCached | Evict beans from cached memory.<br><br>These methods are useful where code interactions with *persistentBeans* may be in contention with default actions resulting from user activity (like pressing the Save button). <br><br>For example, if a user executes an action which impacts on the bean displayed in the view, and modified beans are not evicted, the user's action will be in contention with the action. In this case, the user's subsequent attempt to Save the bean will be met with a message stating that the current bean has already been modified by the user and can't be saved. <br><br>Evicting cached beans at the conclusion of the action will avoid such a contention issue.
-  delete | deletes a bean instance
-  executeDML, <br><br>executeInsecureSQLDML | Execute persistence data manipulation language queries, either object DML or Insecure SQL DML.
-  flush | pushes all pending DML statements to the database (without _commit_)
-  upsertBeanTuple, <br><br>upsertCollectionTuples | Persists values only within the top-most level of the bean structure. <br><br>During an *upsert*, no bean validation is performed, and reference ID values are persisted without traversing into the related bean.
-  retrieve(ProjectionQuery), <br><br>retrieveInsecureSQL |  Retrieve a bean or collection of beans using a project query or via Insecure SQL
-  retrieve(Bean)    | Retrieve the current bean as it was last persisted.
+  `getUser`          | Gets the current conversation *metadata.user*
+  `getCustomer`	| Gets the current 
+  `begin`, `rollback`, `commit` |   Control the state of the current transaction
+  `evictAllCached`, <br><br>`evitCached` | Evict beans from cached memory.<br><br>These methods are useful where code interactions with *persistentBeans* may be in contention with default actions resulting from user activity (like pressing the Save button). <br><br>For example, if a user executes an action which impacts on the bean displayed in the view, and modified beans are not evicted, the user's action will be in contention with the action. In this case, the user's subsequent attempt to Save the bean will be met with a message stating that the current bean has already been modified by the user and can't be saved. <br><br>Evicting cached beans at the conclusion of the action will avoid such a contention issue.
+  `delete` | deletes a bean instance
+  `flush` | pushes all pending DML statements to the database (without _commit_)
+  `save` | saves the bean or beans
+  `upsertBeanTuple`, <br><br>`upsertCollectionTuples` | Persists values only within the top-most level of the bean structure. <br><br>During an *upsert*, no bean validation is performed, and reference ID values are persisted without traversing into the related bean.
 
 _Key methods of the Persistence utility class_
 
-#### Insecure SQL
+### Unsecured SQL
 
 Methods using SQL are provided, but not recommended and are to be used
 with care. Unlike object query methods, SQL is implementation specific,
 but more importantly, the Skyve platform cannot assert automatic
-customer scoping and other platform features in insecure SQL.
+customer scoping and other platform features in unsecured SQL.
 
-### Util
+## Injection
 
+Skyve supports injection of the following resources (using Contexts and Dependency Injection - CDI) into any into actions, bizlets, extension classes etc. This is useful when writing tests and you would like to mock the behaviour of one of the Skyve classes, or you have an alternate implementation to inject.
 
-### Injection
-
-Skyve supports injection of the following resources (using Contexts and Dependency Injection - CDI) into any into actions, bizlets, extension classes etc.
 * Customer
 * Persistence
+* Reporting
 * Repository
 * Stash
 * User 
 
-Injection will survive serialisation. 
+Injection will survive serialisation.
+
+Resources can be injected into a class like below: 
+
+```java
+  @Inject
+  private transient Reporting reportService;
+```
+
+## Reporting
+
+Developers can work with Freemarker and Jasper reports by obtaining an instance of the reporting service via `EXT`, or via [injection](#injection).
+
+```java
+  EXT.getReporting()
+```
+
+The reporting service provides many helper methods for working with reports and attachments. Some of the commonly used methods are:
+
+Method(s)        | Description/Usage
+---------------- | ------------------
+`createFreemarkerBeanReportPDF` | Creates a new Freemarker PDF report and writes the file to disk ready to be processed further (e.g. DownloadAction, sent via email).
+`getMailAttachmentFromJasperReport` | Produces a PDF from a Jasper report ready to include as a Mail Attachment in an email.
+`runJasperBeanReport`, `runJasperSQLReport`, `runJasperReport` | Run a Jasper report
+
+
+## Tag Manager
+
+Developers can work with Tags by using EXT to obtain an instace of the tag manager.
+
+```java
+  EXT.getTagManager()
+```
+
+Once you have the tag manager, the following methods can be accessed:
+
+  Methods       | Description/Usage
+  ------------- | ------------------
+  `clearTag()`, `createTag()`, `deleteTag()`, `getTagId()`, `getTags()`, `iterateTagged()`,` tag()`, `untag()` | Developer access to Skyve's Tag function, allowing the developer to create methods which respond to the user selection.
+
+## Time
+
+The `Time` utility class provides some frequently used helper methods for working with dates and times. A sample of common ones are listed below, there are many more to explore.
+
+Method(s)        | Description/Usage
+---------------- | ------------------
+`addHours`, `addDays`, `addMonths` | Modifies the time component of an existing date.
+`asDateOnly` | Converts a Java `LocalDate` to a Skyve `DateOnly`.
+`getFinancialYear`, `getFinancialYearString` | Returns the Financial Year in which the given date exists (where financial year begins July 1).
+`min`, `max` | Returns the earliest or latest date from a collection of dates
+`numberOfDaysBetween` | Returns the number of days between two dates.
+`withDate` | Creates a new `DateOnly` with the specified day, month, year.
+
+Working with time is as follows: 
+
+```java
+import org.skyve.util.Time;
+
+  // create a new date a week from today
+  Time.addDaysToNew(new DateOnly(), 7);
+```
 
 **[⬆ back to top](#utility-classes)**
 
